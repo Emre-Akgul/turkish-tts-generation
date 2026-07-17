@@ -1,0 +1,33 @@
+dataset:
+  path: your-namespace/your-dataset
+  subset: null
+  revision: null
+  split: train
+  text_column: text
+  id_column: null
+  shuffle: true
+  seed: 42
+  limit: 10
+
+targets:
+  - name: baseline
+    engine: noop
+    model_id: your-model-id
+    batch_size: 4
+    device: auto
+    dtype: auto
+    options: {}
+
+  - name: candidate
+    engine: noop
+    model_id: another-model-id
+    batch_size: 4
+    device: auto
+    dtype: auto
+    options: {}
+
+output:
+  root: outputs
+  run_name: example
+  audio_format: wav
+  resume: true

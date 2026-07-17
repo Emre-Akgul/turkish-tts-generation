@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "turkish-tts-generation"
+version = "0.1.0"
+description = "Generate Turkish speech samples with multiple text-to-speech models."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "ISC"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Emre Akgül", email = "emreakgulcs@gmail.com" },
+]
+dependencies = [
+    "datasets>=4.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+tts-generate = "turkish_tts_generation.cli:main"
+
+[project.urls]
+Repository = "https://github.com/Emre-Akgul/turkish-tts-generation"
+Issues = "https://github.com/Emre-Akgul/turkish-tts-generation/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.4",
+    "ty>=0.0.14",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["turkish_tts_generation"]
+
+[tool.ty.src]
+include = ["src", "tests"]

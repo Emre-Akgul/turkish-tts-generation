@@ -1,0 +1,14 @@
+.idea/
+.vscode/
+
+*.egg-info/
+*.py[cod]
+.venv/
+build/
+dist/
+outputs/*
+!outputs/.gitkeep
+
+.pytest_cache/
+.ruff_cache/
+__pycache__/
