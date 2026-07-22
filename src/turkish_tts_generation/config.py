@@ -21,6 +21,9 @@ class DatasetConfig:
     revision: str | None = None
     split: str = "train"
     id_column: str | None = None
+    reference_audio_column: str | None = None
+    reference_text_column: str | None = None
+    speaker_id_column: str | None = None
     shuffle: bool = False
     seed: int = 42
     limit: int | None = None
@@ -111,6 +114,9 @@ def _parse_dataset(value: object) -> DatasetConfig:
         split=_required_string(data, "split", "dataset"),
         text_column=_required_string(data, "text_column", "dataset"),
         id_column=_optional_string(data, "id_column", "dataset"),
+        reference_audio_column=_optional_string(data, "reference_audio_column", "dataset"),
+        reference_text_column=_optional_string(data, "reference_text_column", "dataset"),
+        speaker_id_column=_optional_string(data, "speaker_id_column", "dataset"),
         shuffle=shuffle,
         seed=seed,
         limit=limit,

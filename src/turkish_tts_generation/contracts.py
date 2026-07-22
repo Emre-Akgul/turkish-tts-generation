@@ -12,6 +12,9 @@ class TextSample:
     sample_id: str
     text: str
     source_index: int
+    reference_audio: str | None = None
+    reference_text: str | None = None
+    speaker_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

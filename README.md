@@ -1,89 +1,89 @@
 # Turkish TTS Generation
 
-Generate comparable TTS artifacts from a Hugging Face dataset through inference-engine backends.
+Generate comparable Turkish TTS samples from one Hugging Face dataset. Checkpoints that share an architecture share an engine; dependency-incompatible engines run in isolated, persistent subprocesses.
 
-The template separates four concerns:
+## Supported models
 
-```text
-Hugging Face Dataset → normalized text samples → inference engine → audio + manifest
-```
+| Model | Engine | Conditioning |
+| --- | --- | --- |
+| Trendyol-TTS | `voxcpm` | text |
+| Chatterbox Multilingual V3 | `chatterbox` | text, optional reference |
+| VoxCPM2 | `voxcpm` | text |
+| Orkhon-TTS | `f5-tts` | reference audio |
+| MOSS-TTS-Nano-100M | `moss-tts` | reference audio |
+| Supertonic 3 | `supertonic` | built-in voice |
+| XTTS-v2 | `xtts` | reference audio or speaker ID |
+| OmniVoice | `omnivoice` | text, optional reference |
+| Freya-TTS | `freya` | deterministic seed voice |
 
-Models are configuration values. Engines are reusable backends registered under a short name, so one engine can serve many compatible models.
+Trendyol-TTS and VoxCPM2 intentionally use the same `voxcpm` engine. Model aliases and exact Hugging Face IDs are both accepted.
 
-## Setup
+## 1. Install the job runner
 
 ```bash
 make setup
 ```
 
-Set `HF_TOKEN` in your environment when the dataset is private or gated. Tokens are never stored in the YAML configuration.
+## 2. Download checkpoints
 
-## Configure a job
+Models are not stored in Git. Put them on a disk with at least 23 GiB free:
 
-Edit [`configs/generation.yaml`](configs/generation.yaml):
+```bash
+make download-models MODEL_ROOT=/media/$USER/your-disk/turkish-tts-models
+export TTS_MODEL_ROOT=/media/$USER/your-disk/turkish-tts-models
+```
+
+The downloader is resumable and verifies required files. `HF_TOKEN` is read from the environment for gated repositories.
+
+## 3. Install engine runtimes
+
+Install only the families you plan to execute:
+
+```bash
+make setup-runtime ENGINE=voxcpm
+make setup-runtime ENGINE=supertonic
+```
+
+Use `ENGINE=all` to install all eight environments. They are kept under `.runtimes/` because their Torch and Transformers requirements conflict. Override an interpreter with, for example, `TTS_VOXCPM_PYTHON=/path/to/python`.
+
+## 4. Configure and run
+
+Edit [`configs/generation.yaml`](configs/generation.yaml). Voice-cloning models obtain conditioning through these optional dataset mappings:
 
 ```yaml
 dataset:
-  path: your-namespace/your-dataset
-  subset: null
-  revision: null
-  split: train
   text_column: text
-  id_column: null
-  shuffle: true
-  seed: 42
-  limit: 10
-
-targets:
-  - name: baseline
-    engine: noop
-    model_id: your-model-id
-    batch_size: 4
-    device: auto
-    dtype: auto
-    options: {}
-
-output:
-  root: outputs
-  run_name: example
-  audio_format: wav
-  resume: true
+  reference_audio_column: reference_audio
+  reference_text_column: reference_text
+  speaker_id_column: speaker_id
 ```
 
-`text_column` is required. When `id_column` is omitted, deterministic IDs are generated from source row indices. Selection is deterministic for a fixed `shuffle`, `seed`, and `limit`.
+A target-wide reference can instead be placed in `options.reference_audio`. Relative paths are interpreted from the command's working directory.
 
-## Plan a run
-
-The built-in `noop` engine exists only for dry runs. It validates the complete dataset/target matrix without loading a model or writing audio:
+Validate dataset selection, targets, and output paths without loading any model:
 
 ```bash
 uv run tts-generate --config configs/generation.yaml --dry-run
 ```
 
-Each target receives a plan at:
+Generate audio:
+
+```bash
+uv run tts-generate --config configs/generation.yaml
+```
+
+Outputs are written to:
 
 ```text
-outputs/<run_name>/<target_name>/plan.jsonl
+outputs/<run>/<target>/audio/
+outputs/<run>/<target>/manifest.jsonl
 ```
 
-Real engines write audio and a resumable manifest under:
+Successful existing artifacts are resumed; failed or missing samples are retried. Pass `--force` to regenerate everything.
 
-```text
-outputs/<run_name>/<target_name>/audio/
-outputs/<run_name>/<target_name>/manifest.jsonl
-```
+## Engine options
 
-Successful artifacts are skipped on the next run. Failed or missing artifacts are retried. Pass `--force` to ignore resume state.
-
-## Add an inference engine
-
-Implement the batch-first `InferenceEngine` protocol and register its factory in `create_default_registry` so the CLI can resolve its configured name:
-
-```python
-registry.register("my-engine", MyEngine)
-```
-
-An engine receives a `TargetConfig` during `load`, then batches of `GenerationItem` values. It must write audio to each item's precomputed `output_path` and return one `EngineResult` per sample.
+Each target accepts an `options` mapping. Common useful options include `model_path`, `reference_audio`, `reference_text`, `language`, `seed`, `steps`, and `speed`. Defaults are Turkish-oriented. The engine worker returns one result for every requested item, so a failure in one sample does not abort later samples or batches.
 
 ## Development
 

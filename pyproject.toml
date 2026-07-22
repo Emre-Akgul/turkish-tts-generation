@@ -48,3 +48,4 @@ known-first-party = ["turkish_tts_generation"]
 
 [tool.ty.src]
 include = ["src", "tests"]
+exclude = ["src/turkish_tts_generation/worker.py"]

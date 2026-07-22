@@ -12,3 +12,6 @@ outputs/*
 .pytest_cache/
 .ruff_cache/
 __pycache__/
+.runtimes/
+models/
+.moss-output/

@@ -27,6 +27,13 @@ def load_samples(config: DatasetConfig, *, loader: DatasetLoader | None = None) 
     required_columns = {config.text_column}
     if config.id_column is not None:
         required_columns.add(config.id_column)
+    for column in (
+        config.reference_audio_column,
+        config.reference_text_column,
+        config.speaker_id_column,
+    ):
+        if column is not None:
+            required_columns.add(column)
     missing_columns = sorted(required_columns - columns)
     if missing_columns:
         msg = f"dataset is missing configured columns: {', '.join(missing_columns)}"
@@ -59,7 +66,21 @@ def _normalize_row(row: Mapping[str, Any], source_index: int, config: DatasetCon
             msg = f"dataset row {source_index} has an empty sample ID"
             raise ConfigError(msg)
         sample_id = str(raw_id).strip()
-    return TextSample(sample_id=sample_id, text=text.strip(), source_index=source_index)
+    return TextSample(
+        sample_id=sample_id,
+        text=text.strip(),
+        source_index=source_index,
+        reference_audio=_optional_row_string(row, config.reference_audio_column),
+        reference_text=_optional_row_string(row, config.reference_text_column),
+        speaker_id=_optional_row_string(row, config.speaker_id_column),
+    )
+
+
+def _optional_row_string(row: Mapping[str, Any], column: str | None) -> str | None:
+    if column is None or row[column] is None:
+        return None
+    value = str(row[column]).strip()
+    return value or None
 
 
 def batches(items: Sequence[GenerationItem], batch_size: int) -> list[Sequence[GenerationItem]]:

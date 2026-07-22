@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup format lint types test check clean
+.PHONY: help setup format lint types test check clean download-models setup-runtime
 
 help:
 	@echo "Available commands:"
@@ -11,9 +11,17 @@ help:
 	@echo "  make test    Run tests"
 	@echo "  make check   Run lint, type checks, and tests"
 	@echo "  make clean   Remove generated caches and build artifacts"
+	@echo "  make download-models MODEL_ROOT=/path  Download all supported checkpoints"
+	@echo "  make setup-runtime ENGINE=voxcpm       Install one isolated engine runtime"
 
 setup:
 	uv sync
+
+download-models:
+	uv run python scripts/download_models.py --model-root "$(MODEL_ROOT)"
+
+setup-runtime:
+	uv run python scripts/setup_runtime.py "$(ENGINE)"
 
 format:
 	uv run ruff format src tests

@@ -17,6 +17,7 @@ from turkish_tts_generation.contracts import (
 from turkish_tts_generation.dataset import batches, load_samples
 from turkish_tts_generation.engine import EngineRegistry
 from turkish_tts_generation.io import read_manifest, write_manifest
+from turkish_tts_generation.models import SUPPORTED_MODELS, resolve_model
 
 SampleLoader = Callable[[DatasetConfig], list[TextSample]]
 
@@ -50,6 +51,14 @@ class GenerationRunner:
             available = ", ".join(self.registry.names) or "none"
             msg = f"unknown configured engines: {', '.join(unknown)} (available: {available})"
             raise ValueError(msg)
+        model_engines = {model.engine for model in SUPPORTED_MODELS}
+        for target in self.config.targets:
+            if target.engine not in model_engines:
+                continue
+            model = resolve_model(target.model_id)
+            if model.engine != target.engine:
+                msg = f"model '{target.model_id}' requires engine '{model.engine}', not '{target.engine}'"
+                raise ValueError(msg)
 
     def _run_target(
         self,

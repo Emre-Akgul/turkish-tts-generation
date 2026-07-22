@@ -2,7 +2,7 @@
 
 import pytest
 
-from turkish_tts_generation.engine import EngineRegistry, NoopEngine
+from turkish_tts_generation.engine import EngineRegistry, NoopEngine, SubprocessEngine, create_default_registry
 
 
 def test_register_and_create_engine() -> None:
@@ -21,3 +21,20 @@ def test_reject_duplicate_and_unknown_engines() -> None:
         registry.register("noop", NoopEngine)
     with pytest.raises(ValueError, match="unknown engine"):
         registry.create("missing")
+
+
+def test_default_registry_has_every_architecture() -> None:
+    registry = create_default_registry()
+
+    assert set(registry.names) == {
+        "chatterbox",
+        "f5-tts",
+        "freya",
+        "moss-tts",
+        "noop",
+        "omnivoice",
+        "supertonic",
+        "voxcpm",
+        "xtts",
+    }
+    assert isinstance(registry.create("voxcpm"), SubprocessEngine)

@@ -164,3 +164,22 @@ def test_unknown_engine_fails_before_loading_dataset(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="unknown configured engines"):
         runner.run(dry_run=True)
+
+
+def test_reject_model_engine_mismatch_before_loading_dataset(tmp_path: Path) -> None:
+    registry = EngineRegistry()
+    registry.register("xtts", lambda: pytest.fail("mismatched target created an engine"))
+    config = _config(tmp_path, engine="xtts")
+    config = GenerationConfig(
+        dataset=config.dataset,
+        targets=(TargetConfig(name="target", engine="xtts", model_id="voxcpm2"),),
+        output=config.output,
+    )
+    runner = GenerationRunner(
+        config,
+        registry,
+        sample_loader=lambda _config: pytest.fail("mismatched target loaded the dataset"),
+    )
+
+    with pytest.raises(ValueError, match="requires engine 'voxcpm'"):
+        runner.run(dry_run=True)

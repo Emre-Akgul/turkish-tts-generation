@@ -54,3 +54,19 @@ def test_reject_missing_text_column() -> None:
 
     with pytest.raises(ConfigError, match="missing configured columns"):
         load_samples(config, loader=lambda *_args, **_kwargs: dataset)
+
+
+def test_conditioning_column_mapping() -> None:
+    dataset = FakeDataset([{"text": "Merhaba", "audio": "/tmp/ref.wav", "transcript": "Selam", "speaker": 7}])
+    config = DatasetConfig(
+        path="org/dataset",
+        text_column="text",
+        reference_audio_column="audio",
+        reference_text_column="transcript",
+        speaker_id_column="speaker",
+    )
+
+    sample = load_samples(config, loader=lambda *_args, **_kwargs: dataset)[0]
+    assert sample.reference_audio == "/tmp/ref.wav"
+    assert sample.reference_text == "Selam"
+    assert sample.speaker_id == "7"
