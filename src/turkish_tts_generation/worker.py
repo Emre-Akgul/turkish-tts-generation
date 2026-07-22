@@ -18,7 +18,7 @@ def _device(value: str) -> str:
 
 
 def _reference(item: dict[str, Any], options: dict[str, Any]) -> str | None:
-    value = item.get("reference_audio") or options.get("reference_audio")
+    value = item.get("reference_audio") or options.get("reference_audio") or options.get("_default_reference_audio")
     return str(value) if value else None
 
 
@@ -107,8 +107,6 @@ class F5Backend(Backend):
         import soundfile as sf
 
         reference = _reference(item, self.options)
-        if not reference:
-            raise ValueError("f5-tts requires reference_audio on the dataset row or target options")
         self.model.infer(
             ref_file=reference,
             ref_text=item.get("reference_text") or self.options.get("reference_text", ""),
@@ -138,8 +136,6 @@ class MossBackend(Backend):
 
     def generate(self, item: dict[str, Any]) -> tuple[int, float | None]:
         reference = _reference(item, self.options)
-        if not reference:
-            raise ValueError("moss-tts requires reference_audio on the dataset row or target options")
         result = self.service.synthesize(
             text=item["text"],
             output_audio_path=item["output_path"],
@@ -200,7 +196,7 @@ class XTTSBackend(Backend):
         elif speaker:
             kwargs["speaker"] = speaker
         else:
-            raise ValueError("xtts requires reference_audio or speaker_id")
+            raise FileNotFoundError("XTTS default reference audio is missing; download or configure a reference")
         self.model.tts_to_file(**kwargs)
         info = sf.info(item["output_path"])
         return info.samplerate, info.duration

@@ -9,10 +9,10 @@ Generate comparable Turkish TTS samples from one Hugging Face dataset. Checkpoin
 | Trendyol-TTS | `voxcpm` | text |
 | Chatterbox Multilingual V3 | `chatterbox` | text, optional reference |
 | VoxCPM2 | `voxcpm` | text |
-| Orkhon-TTS | `f5-tts` | reference audio |
-| MOSS-TTS-Nano-100M | `moss-tts` | reference audio |
+| Orkhon-TTS | `f5-tts` | optional reference |
+| MOSS-TTS-Nano-100M | `moss-tts` | optional reference |
 | Supertonic 3 | `supertonic` | built-in voice |
-| XTTS-v2 | `xtts` | reference audio or speaker ID |
+| XTTS-v2 | `xtts` | optional reference or speaker ID |
 | OmniVoice | `omnivoice` | text, optional reference |
 | Freya-TTS | `freya` | deterministic seed voice |
 
@@ -58,7 +58,7 @@ dataset:
   speaker_id_column: speaker_id
 ```
 
-A target-wide reference can instead be placed in `options.reference_audio`. Relative paths are interpreted from the command's working directory.
+All reference fields are optional. When no reference or speaker ID is supplied, Orkhon, MOSS, and XTTS use the Turkish sample bundled with the downloaded XTTS checkpoint as their default voice. A target-wide reference can instead be placed in `options.reference_audio`; it overrides this fallback. Relative paths are interpreted from the command's working directory.
 
 Validate dataset selection, targets, and output paths without loading any model:
 

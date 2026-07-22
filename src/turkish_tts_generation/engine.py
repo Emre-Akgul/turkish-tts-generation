@@ -111,6 +111,10 @@ class SubprocessEngine:
                 Path(str(target.options.get("companion_path", root / model.companion_directory))).expanduser().resolve()
             )
 
+        worker_options = dict(target.options)
+        if model.default_reference_audio and "reference_audio" not in worker_options:
+            worker_options["_default_reference_audio"] = str((root / model.default_reference_audio).resolve())
+
         python = self._python_executable()
         command = [
             str(python),
@@ -125,7 +129,7 @@ class SubprocessEngine:
             "--dtype",
             target.dtype,
             "--options",
-            json.dumps(target.options),
+            json.dumps(worker_options),
         ]
         if companion_path is not None:
             command.extend(("--companion-path", str(companion_path)))

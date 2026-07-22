@@ -43,7 +43,7 @@ DOWNLOADS = (
         ("model-00001-of-00001.safetensors", "model.safetensors.index.json"),
     ),
     Download("Supertone/supertonic-3", "supertonic-3", ("onnx/tts.json",)),
-    Download("coqui/XTTS-v2", "xtts-v2", ("model.pth", "config.json")),
+    Download("coqui/XTTS-v2", "xtts-v2", ("model.pth", "config.json", "samples/tr_sample.wav")),
     Download("k2-fsa/OmniVoice", "omnivoice", ("model.safetensors", "audio_tokenizer/model.safetensors")),
     Download("freyavoice/Freya-TTS", "freya-tts", ("model.safetensors", "config.json")),
 )

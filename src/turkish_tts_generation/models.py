@@ -11,8 +11,8 @@ class ModelDefinition:
     model_id: str
     engine: str
     directory: str
-    requires_reference_audio: bool = False
     companion_directory: str | None = None
+    default_reference_audio: str | None = None
 
 
 SUPPORTED_MODELS = (
@@ -24,19 +24,38 @@ SUPPORTED_MODELS = (
         "chatterbox-multilingual-v3",
     ),
     ModelDefinition("voxcpm2", "openbmb/VoxCPM2", "voxcpm", "voxcpm2"),
-    ModelDefinition("orkhon-tts", "hcsolakoglu/Orkhon-TTS", "f5-tts", "orkhon-tts", True, "vocos-mel-24khz"),
+    ModelDefinition(
+        "orkhon-tts",
+        "hcsolakoglu/Orkhon-TTS",
+        "f5-tts",
+        "orkhon-tts",
+        companion_directory="vocos-mel-24khz",
+        default_reference_audio="xtts-v2/samples/tr_sample.wav",
+    ),
     ModelDefinition(
         "moss-tts-nano-100m",
         "OpenMOSS-Team/MOSS-TTS-Nano-100M",
         "moss-tts",
         "moss-tts-nano-100m",
-        True,
-        "moss-audio-tokenizer-nano",
+        companion_directory="moss-audio-tokenizer-nano",
+        default_reference_audio="xtts-v2/samples/tr_sample.wav",
     ),
     ModelDefinition("supertonic-3", "Supertone/supertonic-3", "supertonic", "supertonic-3"),
-    ModelDefinition("xtts-v2", "coqui/XTTS-v2", "xtts", "xtts-v2", True),
+    ModelDefinition(
+        "xtts-v2",
+        "coqui/XTTS-v2",
+        "xtts",
+        "xtts-v2",
+        default_reference_audio="xtts-v2/samples/tr_sample.wav",
+    ),
     ModelDefinition("omnivoice", "k2-fsa/OmniVoice", "omnivoice", "omnivoice"),
-    ModelDefinition("freya-tts", "freyavoice/Freya-TTS", "freya", "freya-tts", False, "voxcpm2"),
+    ModelDefinition(
+        "freya-tts",
+        "freyavoice/Freya-TTS",
+        "freya",
+        "freya-tts",
+        companion_directory="voxcpm2",
+    ),
 )
 
 
