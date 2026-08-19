@@ -93,9 +93,7 @@ class ChatterboxBackend(Backend):
 
         self.torchaudio = torchaudio
         self.options = options
-        self.model = ChatterboxMultilingualTTS.from_local(
-            str(model_path), device=device, t3_model="t3_mtl23ls_v3.safetensors"
-        )
+        self.model = ChatterboxMultilingualTTS.from_local(str(model_path), device)
         self.sample_rate = int(self.model.sr)
 
     def generate(self, item: dict[str, Any]) -> tuple[int, float]:
