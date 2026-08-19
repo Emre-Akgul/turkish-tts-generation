@@ -38,6 +38,30 @@ def test_stage_builds_smoke_full_normalize_and_cleanup_commands(tmp_path: Path) 
     assert cleanup_calls[0][0] == {"supertonic-3"}
 
 
+def test_stage_skips_normalize_and_cleanup_when_requested(tmp_path: Path) -> None:
+    commands: list[tuple[str, ...]] = []
+
+    def command_runner(command: Any, _environment: dict[str, str]) -> None:
+        commands.append(tuple(command))
+
+    def cleanup_runner(*_args: Any, **_kwargs: Any) -> list[Path]:
+        pytest.fail("cleanup must not run when normalize is skipped")
+
+    removed = stage_target(
+        CONFIG,
+        "supertonic-3",
+        model_root=tmp_path / "models",
+        runtime_root=tmp_path / "runtimes",
+        normalize=False,
+        command_runner=command_runner,
+        cleanup_runner=cleanup_runner,
+    )
+
+    assert len(commands) == 4
+    assert all("turkish_tts_generation.arena_audio" not in command for command in commands)
+    assert removed == []
+
+
 def test_stage_rejects_unknown_target(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="unknown configured target"):
         stage_target(CONFIG, "missing", model_root=tmp_path / "models", runtime_root=tmp_path / "runtimes")

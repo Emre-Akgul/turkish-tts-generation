@@ -14,6 +14,8 @@
 #                       download/runtime install, in GiB (default: 8)
 #   TTS_CLEANUP         1 to delete each model/runtime after it verifiably
 #                       completes, to save disk (default: 0)
+#   TTS_NORMALIZE        1 to run arena loudness normalization after each
+#                       target, 0 to only produce raw generated audio (default: 0)
 #
 # Usage:
 #   export TTS_MODEL_ROOT=/media/$USER/your-disk/turkish-tts-models
@@ -46,12 +48,17 @@ CLEANUP_FLAG=()
 if [[ "${TTS_CLEANUP:-0}" != "1" ]]; then
   CLEANUP_FLAG=(--skip-cleanup)
 fi
+NORMALIZE_FLAG=()
+if [[ "${TTS_NORMALIZE:-0}" != "1" ]]; then
+  NORMALIZE_FLAG=(--skip-normalize)
+fi
 
 echo "Staging ${#TARGETS[@]} targets from ${CONFIG}"
 echo "Model root:   ${TTS_MODEL_ROOT}"
 echo "Runtime root: ${TTS_RUNTIME_ROOT}"
 echo "Headroom:     ${HEADROOM_GIB} GiB"
 echo "Cleanup:      ${TTS_CLEANUP:-0}"
+echo "Normalize:    ${TTS_NORMALIZE:-0}"
 
 FAILED=()
 for target in "${TARGETS[@]}"; do
@@ -63,7 +70,8 @@ for target in "${TARGETS[@]}"; do
       --model-root "${TTS_MODEL_ROOT}" \
       --runtime-root "${TTS_RUNTIME_ROOT}" \
       --headroom-gib "${HEADROOM_GIB}" \
-      "${CLEANUP_FLAG[@]}"; then
+      "${CLEANUP_FLAG[@]}" \
+      "${NORMALIZE_FLAG[@]}"; then
     echo "==> Done: ${target}"
   else
     echo "==> FAILED: ${target} (left on disk for inspection, not cleaned up)" >&2
