@@ -21,8 +21,8 @@ targets:
   - {name: xtts-v2, engine: xtts, model_id: xtts-v2, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, language: tr}}
   - {name: omnivoice, engine: omnivoice, model_id: omnivoice, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, language: tr, steps: 16, speed: 1.0}}
   - {name: freya, engine: freya, model_id: freya-tts, batch_size: 1, device: cuda, dtype: float32, options: {seed: 9, steps: 32}}
-  - {name: trendyol, engine: voxcpm, model_id: trendyol-tts, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false}}
-  - {name: voxcpm2, engine: voxcpm, model_id: voxcpm2, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false}}
+  - {name: trendyol, engine: voxcpm, model_id: trendyol-tts, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, optimize: false}}
+  - {name: voxcpm2, engine: voxcpm, model_id: voxcpm2, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, optimize: false}}
   - {name: s2-pro, engine: fish-speech, model_id: s2-pro, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42}}
 
 output:
