@@ -143,6 +143,26 @@ def test_resume_skips_successes_and_retries_missing_artifacts(tmp_path: Path) ->
     assert retry_engine.batch_sizes == [1]
 
 
+def test_sample_filtered_run_preserves_manifest_history(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    GenerationRunner(config, _registry(SuccessfulEngine()), sample_loader=lambda _config: SAMPLES).run()
+    manifest_path = tmp_path / "outputs" / "run" / "target" / "manifest.jsonl"
+    assert len(read_manifest(manifest_path)) == 3
+
+    smoke_engine = SuccessfulEngine()
+    smoke = GenerationRunner(config, _registry(smoke_engine), sample_loader=lambda _config: SAMPLES).run(
+        sample_ids={"sample-0"}
+    )
+
+    assert smoke.skipped == 1
+    statuses = {record.sample_id: record.status for record in read_manifest(manifest_path)}
+    assert statuses == {
+        "sample-0": ManifestStatus.SKIPPED,
+        "sample-1": ManifestStatus.SUCCEEDED,
+        "sample-2": ManifestStatus.SUCCEEDED,
+    }
+
+
 def test_force_regenerates_successful_records(tmp_path: Path) -> None:
     config = _config(tmp_path)
     GenerationRunner(config, _registry(SuccessfulEngine()), sample_loader=lambda _config: SAMPLES).run()

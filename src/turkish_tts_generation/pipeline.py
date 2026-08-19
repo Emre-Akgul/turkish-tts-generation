@@ -115,8 +115,15 @@ class GenerationRunner:
         audio_dir.mkdir(parents=True, exist_ok=True)
         records.extend(self._generate_pending(target, pending))
         records.sort(key=lambda record: record.source_index)
-        write_manifest(output_manifest_path, records)
-        return self._summarize(records)
+        summary = self._summarize(records)
+
+        # A filtered run (e.g. the smoke sample subset) must not drop the manifest
+        # history for sample IDs outside its own selection.
+        covered_ids = {sample.sample_id for sample in samples}
+        merged = [*records, *(record for sample_id, record in completed.items() if sample_id not in covered_ids)]
+        merged.sort(key=lambda record: record.source_index)
+        write_manifest(output_manifest_path, merged)
+        return summary
 
     @staticmethod
     def _completed_records(path: Path) -> dict[str, ManifestRecord]:
