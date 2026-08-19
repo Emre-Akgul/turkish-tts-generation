@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import re
 import subprocess
 import wave
@@ -111,6 +112,8 @@ def normalize_audio(source: Path, destination: Path, *, ffmpeg: str = "ffmpeg") 
     if not matches:
         raise RuntimeError("ffmpeg did not report first-pass loudness measurements")
     measured = json.loads(matches[-1])
+    if not math.isfinite(float(measured["input_i"])):
+        raise RuntimeError(f"generated audio is silent, cannot normalize: {source}")
     parameters = (
         f"loudnorm=I={LOUDNESS_I}:TP={TRUE_PEAK}:LRA={LOUDNESS_RANGE}"
         f":measured_I={measured['input_i']}:measured_TP={measured['input_tp']}"
