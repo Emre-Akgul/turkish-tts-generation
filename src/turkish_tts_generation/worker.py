@@ -102,17 +102,29 @@ class ChatterboxBackend(Backend):
         self.sample_rate = int(self.model.sr)
 
     def generate(self, item: dict[str, Any]) -> tuple[int, float]:
-        wav = self.model.generate(
-            item["text"],
-            language_id=str(self.options.get("language", "tr")),
-            audio_prompt_path=_reference(item, self.options),
-            exaggeration=float(self.options.get("exaggeration", 0.5)),
-            cfg_weight=float(self.options.get("cfg_weight", 0.5)),
-            temperature=float(self.options.get("temperature", 0.8)),
-            repetition_penalty=float(self.options.get("repetition_penalty", 1.2)),
-            min_p=float(self.options.get("min_p", 0.05)),
-            top_p=float(self.options.get("top_p", 1.0)),
-        )
+        # The alignment-repetition guard occasionally forces EOS after only a
+        # handful of tokens, producing near-silent output; retry with fresh
+        # sampling noise rather than shipping a broken clip.
+        minimum_seconds = float(self.options.get("minimum_seconds", 0.5))
+        attempts = int(self.options.get("silence_retries", 3))
+        duration = 0.0
+        for _ in range(attempts):
+            wav = self.model.generate(
+                item["text"],
+                language_id=str(self.options.get("language", "tr")),
+                audio_prompt_path=_reference(item, self.options),
+                exaggeration=float(self.options.get("exaggeration", 0.5)),
+                cfg_weight=float(self.options.get("cfg_weight", 0.5)),
+                temperature=float(self.options.get("temperature", 0.8)),
+                repetition_penalty=float(self.options.get("repetition_penalty", 1.2)),
+                min_p=float(self.options.get("min_p", 0.05)),
+                top_p=float(self.options.get("top_p", 1.0)),
+            )
+            duration = wav.shape[-1] / self.sample_rate
+            if duration >= minimum_seconds:
+                break
+        else:
+            raise RuntimeError(f"chatterbox produced near-silent audio after {attempts} attempts: {duration:.2f}s")
         self.torchaudio.save(item["output_path"], wav, self.sample_rate)
         return self.sample_rate, wav.shape[-1] / self.sample_rate
 
