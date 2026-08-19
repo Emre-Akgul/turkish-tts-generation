@@ -18,6 +18,7 @@ from turkish_tts_generation.dataset import batches, load_samples
 from turkish_tts_generation.engine import EngineRegistry
 from turkish_tts_generation.io import read_manifest, write_manifest
 from turkish_tts_generation.models import SUPPORTED_MODELS, resolve_model
+from turkish_tts_generation.runtime_lock import RUNTIME_REQUIREMENTS, runtime_lock_sha256
 
 SampleLoader = Callable[[DatasetConfig], list[TextSample]]
 
@@ -36,12 +37,32 @@ class GenerationRunner:
         self.registry = registry
         self.sample_loader = sample_loader or load_samples
 
-    def run(self, *, dry_run: bool = False, force: bool = False) -> RunSummary:
+    def run(
+        self,
+        *,
+        dry_run: bool = False,
+        force: bool = False,
+        target_names: set[str] | None = None,
+        sample_ids: set[str] | None = None,
+    ) -> RunSummary:
         """Run every configured target against the selected dataset rows."""
         self._validate_engines()
         samples = self.sample_loader(self.config.dataset)
+        targets = self.config.targets
+        if target_names:
+            configured_names = {target.name for target in targets}
+            unknown_targets = sorted(target_names - configured_names)
+            if unknown_targets:
+                raise ValueError(f"unknown configured targets: {', '.join(unknown_targets)}")
+            targets = tuple(target for target in targets if target.name in target_names)
+        if sample_ids:
+            configured_ids = {sample.sample_id for sample in samples}
+            unknown_samples = sorted(sample_ids - configured_ids)
+            if unknown_samples:
+                raise ValueError(f"unknown selected sample IDs: {', '.join(unknown_samples)}")
+            samples = [sample for sample in samples if sample.sample_id in sample_ids]
         summary = RunSummary()
-        for target in self.config.targets:
+        for target in targets:
             summary += self._run_target(target, samples, dry_run=dry_run, force=force)
         return summary
 
@@ -188,6 +209,7 @@ class GenerationRunner:
         error: str | None = None,
     ) -> ManifestRecord:
         dataset = self.config.dataset
+        model = resolve_model(target.model_id) if target.engine in RUNTIME_REQUIREMENTS else None
         return ManifestRecord(
             run_name=self.config.output.run_name,
             dataset_id=dataset.path,
@@ -206,7 +228,27 @@ class GenerationRunner:
             duration_seconds=result.duration_seconds if result else None,
             inference_seconds=result.inference_seconds if result else None,
             error=error,
+            prompt_bank_sha256=self._prompt_bank_sha256(),
+            checkpoint_revision=model.revision if model else None,
+            runtime_lock_sha256=runtime_lock_sha256(target.engine) if target.engine in RUNTIME_REQUIREMENTS else None,
+            generation_options={"device": target.device, "dtype": target.dtype, **target.options},
+            seed=int(target.options["seed"]) if "seed" in target.options else None,
+            raw_sha256=self._file_sha256(output_path) if output_path.is_file() else None,
         )
+
+    def _prompt_bank_sha256(self) -> str | None:
+        path = self.config.dataset.data_files
+        if path is None:
+            return None
+        return self._file_sha256(Path(path))
+
+    @staticmethod
+    def _file_sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as file:
+            for chunk in iter(lambda: file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def _audio_filename(self, sample: TextSample) -> str:
         slug = re.sub(r"[^A-Za-z0-9._-]+", "-", sample.sample_id).strip("-.") or "sample"

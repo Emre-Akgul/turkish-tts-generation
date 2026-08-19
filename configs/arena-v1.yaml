@@ -1,0 +1,31 @@
+dataset:
+  path: json
+  data_files: ../data/turkish_arena_v1.jsonl
+  subset: null
+  revision: null
+  split: train
+  text_column: text
+  id_column: id
+  reference_audio_column: null
+  reference_text_column: null
+  speaker_id_column: null
+  shuffle: false
+  seed: 42
+  limit: null
+
+targets:
+  - {name: chatterbox-v3, engine: chatterbox, model_id: chatterbox-multilingual-v3, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, language: tr}}
+  - {name: orkhon, engine: f5-tts, model_id: orkhon-tts, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, steps: 64}}
+  - {name: moss-nano, engine: moss-tts, model_id: moss-tts-nano-100m, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42}}
+  - {name: supertonic-3, engine: supertonic, model_id: supertonic-3, batch_size: 1, device: cuda, dtype: float32, options: {seed: 42, language: tr, voice: F1, steps: 8, speed: 1.05}}
+  - {name: xtts-v2, engine: xtts, model_id: xtts-v2, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, language: tr}}
+  - {name: omnivoice, engine: omnivoice, model_id: omnivoice, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, language: tr, steps: 16, speed: 1.0}}
+  - {name: freya, engine: freya, model_id: freya-tts, batch_size: 1, device: cuda, dtype: float32, options: {seed: 9, steps: 32}}
+  - {name: trendyol, engine: voxcpm, model_id: trendyol-tts, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false}}
+  - {name: voxcpm2, engine: voxcpm, model_id: voxcpm2, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false}}
+
+output:
+  root: outputs
+  run_name: turkish-arena-v1
+  audio_format: wav
+  resume: true

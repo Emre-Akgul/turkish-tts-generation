@@ -1,5 +1,7 @@
 """Inference engine registry tests."""
 
+from pathlib import Path
+
 import pytest
 
 from turkish_tts_generation.engine import EngineRegistry, NoopEngine, SubprocessEngine, create_default_registry
@@ -38,3 +40,12 @@ def test_default_registry_has_every_architecture() -> None:
         "xtts",
     }
     assert isinstance(registry.create("voxcpm"), SubprocessEngine)
+
+
+def test_subprocess_engine_uses_runtime_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("TTS_RUNTIME_ROOT", str(tmp_path))
+    expected = tmp_path / "voxcpm" / ".venv" / "bin" / "python"
+    expected.parent.mkdir(parents=True)
+    expected.touch()
+
+    assert SubprocessEngine("voxcpm")._python_executable() == expected

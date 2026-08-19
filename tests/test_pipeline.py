@@ -105,6 +105,7 @@ def test_batch_generation_and_manifest(tmp_path: Path) -> None:
     assert engine.loaded and engine.unloaded
     assert all(Path(record.output_path).is_file() for record in records)
     assert all(record.sample_rate == 24_000 for record in records)
+    assert all(record.raw_sha256 is not None for record in records)
 
 
 def test_batch_failure_is_recorded_and_next_batch_continues(tmp_path: Path) -> None:
@@ -183,3 +184,28 @@ def test_reject_model_engine_mismatch_before_loading_dataset(tmp_path: Path) -> 
 
     with pytest.raises(ValueError, match="requires engine 'voxcpm'"):
         runner.run(dry_run=True)
+
+
+def test_filters_targets_and_samples(tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    config = GenerationConfig(
+        dataset=config.dataset,
+        targets=(config.targets[0], TargetConfig(name="other", engine="test", model_id="other")),
+        output=config.output,
+    )
+    runner = GenerationRunner(config, _registry(SuccessfulEngine()), sample_loader=lambda _config: SAMPLES)
+
+    summary = runner.run(dry_run=True, target_names={"other"}, sample_ids={"sample-1"})
+
+    assert summary.planned == 1
+    records = read_manifest(tmp_path / "outputs" / "run" / "other" / "plan.jsonl")
+    assert [record.sample_id for record in records] == ["sample-1"]
+
+
+def test_rejects_unknown_target_or_sample_filter(tmp_path: Path) -> None:
+    runner = GenerationRunner(_config(tmp_path), _registry(SuccessfulEngine()), sample_loader=lambda _config: SAMPLES)
+
+    with pytest.raises(ValueError, match="unknown configured targets"):
+        runner.run(dry_run=True, target_names={"missing"})
+    with pytest.raises(ValueError, match="unknown selected sample IDs"):
+        runner.run(dry_run=True, sample_ids={"missing"})

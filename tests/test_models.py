@@ -13,6 +13,7 @@ def test_all_requested_models_are_registered() -> None:
     assert resolve_model("orkhon-tts").default_reference_audio == "xtts-v2/samples/tr_sample.wav"
     assert resolve_model("moss-tts-nano-100m").default_reference_audio == "xtts-v2/samples/tr_sample.wav"
     assert resolve_model("xtts-v2").default_reference_audio == "xtts-v2/samples/tr_sample.wav"
+    assert all(len(model.revision) == 40 for model in SUPPORTED_MODELS)
 
 
 def test_resolve_is_case_insensitive_and_rejects_unknown() -> None:

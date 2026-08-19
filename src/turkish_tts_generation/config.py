@@ -17,6 +17,7 @@ class DatasetConfig:
 
     path: str
     text_column: str
+    data_files: str | None = None
     subset: str | None = None
     revision: str | None = None
     split: str = "train"
@@ -109,6 +110,7 @@ def _parse_dataset(value: object) -> DatasetConfig:
         raise ConfigError(msg)
     return DatasetConfig(
         path=_required_string(data, "path", "dataset"),
+        data_files=_optional_string(data, "data_files", "dataset"),
         subset=_optional_string(data, "subset", "dataset"),
         revision=_optional_string(data, "revision", "dataset"),
         split=_required_string(data, "split", "dataset"),
@@ -182,8 +184,28 @@ def load_config(path: Path) -> GenerationConfig:
     if len(names) != len(set(names)):
         msg = "target names must be unique"
         raise ConfigError(msg)
+    dataset = _parse_dataset(data.get("dataset"))
+    if dataset.data_files is not None:
+        data_files = Path(dataset.data_files).expanduser()
+        if not data_files.is_absolute():
+            data_files = path.resolve().parent / data_files
+        dataset = DatasetConfig(
+            path=dataset.path,
+            text_column=dataset.text_column,
+            data_files=str(data_files.resolve()),
+            subset=dataset.subset,
+            revision=dataset.revision,
+            split=dataset.split,
+            id_column=dataset.id_column,
+            reference_audio_column=dataset.reference_audio_column,
+            reference_text_column=dataset.reference_text_column,
+            speaker_id_column=dataset.speaker_id_column,
+            shuffle=dataset.shuffle,
+            seed=dataset.seed,
+            limit=dataset.limit,
+        )
     return GenerationConfig(
-        dataset=_parse_dataset(data.get("dataset")),
+        dataset=dataset,
         targets=targets,
         output=_parse_output(data.get("output")),
     )

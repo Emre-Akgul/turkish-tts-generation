@@ -21,6 +21,20 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force", action="store_true", help="Ignore successful manifest records and plan every sample."
     )
+    parser.add_argument(
+        "--target",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="Run only this configured target; repeat to select multiple targets.",
+    )
+    parser.add_argument(
+        "--sample-id",
+        action="append",
+        default=[],
+        metavar="ID",
+        help="Run only this sample ID; repeat to build a smoke set.",
+    )
     return parser
 
 
@@ -30,7 +44,12 @@ def main(args: list[str] | None = None) -> int:
     try:
         config = load_config(options.config)
         runner = GenerationRunner(config, create_default_registry())
-        summary = runner.run(dry_run=options.dry_run, force=options.force)
+        summary = runner.run(
+            dry_run=options.dry_run,
+            force=options.force,
+            target_names=set(options.target) or None,
+            sample_ids=set(options.sample_id) or None,
+        )
     except (ConfigError, OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

@@ -20,6 +20,10 @@ dependencies = [
 
 [project.scripts]
 tts-generate = "turkish_tts_generation.cli:main"
+tts-cleanup = "turkish_tts_generation.cleanup:main"
+tts-prepare-arena = "turkish_tts_generation.arena_audio:main"
+tts-stage = "turkish_tts_generation.staging:main"
+tts-validate-prompts = "turkish_tts_generation.prompt_bank:main"
 
 [project.urls]
 Repository = "https://github.com/Emre-Akgul/turkish-tts-generation"

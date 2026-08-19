@@ -66,6 +66,12 @@ class ManifestRecord:
     duration_seconds: float | None = None
     inference_seconds: float | None = None
     error: str | None = None
+    prompt_bank_sha256: str | None = None
+    checkpoint_revision: str | None = None
+    runtime_lock_sha256: str | None = None
+    generation_options: dict[str, object] | None = None
+    seed: int | None = None
+    raw_sha256: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

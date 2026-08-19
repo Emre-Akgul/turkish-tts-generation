@@ -16,13 +16,14 @@ DatasetLoader = Callable[..., Any]
 def load_samples(config: DatasetConfig, *, loader: DatasetLoader | None = None) -> list[TextSample]:
     """Load and deterministically select normalized text samples."""
     dataset_loader = loader or load_dataset
-    dataset = dataset_loader(
-        config.path,
-        config.subset,
-        split=config.split,
-        revision=config.revision,
-        token=os.getenv("HF_TOKEN"),
-    )
+    loader_options: dict[str, Any] = {
+        "split": config.split,
+        "revision": config.revision,
+        "token": os.getenv("HF_TOKEN"),
+    }
+    if config.data_files is not None:
+        loader_options["data_files"] = config.data_files
+    dataset = dataset_loader(config.path, config.subset, **loader_options)
     columns = set(dataset.column_names)
     required_columns = {config.text_column}
     if config.id_column is not None:

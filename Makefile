@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help setup format lint types test check clean download-models setup-runtime
+.PHONY: help setup format lint types test check clean download-models setup-runtime validate-prompts dry-run-arena
 
 help:
 	@echo "Available commands:"
@@ -13,15 +13,23 @@ help:
 	@echo "  make clean   Remove generated caches and build artifacts"
 	@echo "  make download-models MODEL_ROOT=/path  Download all supported checkpoints"
 	@echo "  make setup-runtime ENGINE=voxcpm       Install one isolated engine runtime"
+	@echo "  make validate-prompts                  Validate the arena-v1 prompt bank"
+	@echo "  make dry-run-arena                     Plan all 2,160 arena-v1 artifacts"
 
 setup:
 	uv sync
 
 download-models:
-	uv run python scripts/download_models.py --model-root "$(MODEL_ROOT)"
+	uv run python scripts/download_models.py --model-root "$(MODEL_ROOT)" $(if $(MODEL),--model "$(MODEL)",)
 
 setup-runtime:
-	uv run python scripts/setup_runtime.py "$(ENGINE)"
+	uv run python scripts/setup_runtime.py "$(ENGINE)" $(if $(RUNTIME_ROOT),--runtime-root "$(RUNTIME_ROOT)",)
+
+validate-prompts:
+	uv run tts-validate-prompts data/turkish_arena_v1.jsonl
+
+dry-run-arena:
+	uv run tts-generate --config configs/arena-v1.yaml --dry-run
 
 format:
 	uv run ruff format src tests

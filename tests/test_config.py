@@ -38,6 +38,16 @@ def test_load_config(tmp_path: Path) -> None:
     assert config.output.audio_format == "wav"
 
 
+def test_resolves_local_data_files_from_config_directory(tmp_path: Path) -> None:
+    config_path = _write_config(
+        tmp_path, VALID_CONFIG.replace("  path: org/dataset\n", "  path: json\n  data_files: ../data/prompts.jsonl\n")
+    )
+
+    config = load_config(config_path)
+
+    assert config.dataset.data_files == str((tmp_path / "../data/prompts.jsonl").resolve())
+
+
 @pytest.mark.parametrize(
     ("old", "new", "message"),
     [

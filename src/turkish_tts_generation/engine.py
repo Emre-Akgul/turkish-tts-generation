@@ -201,7 +201,8 @@ class SubprocessEngine:
         if configured:
             return Path(configured).expanduser().absolute()
         project_root = Path(__file__).resolve().parents[2]
-        runtime = project_root / ".runtimes" / self.engine_name / ".venv" / "bin" / "python"
+        runtime_root = Path(os.getenv("TTS_RUNTIME_ROOT", project_root / ".runtimes")).expanduser()
+        runtime = runtime_root / self.engine_name / ".venv" / "bin" / "python"
         return runtime.absolute() if runtime.is_file() else Path(sys.executable)
 
     def _write_request(self, payload: Mapping[str, Any]) -> None:

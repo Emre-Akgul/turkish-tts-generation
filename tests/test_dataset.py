@@ -70,3 +70,16 @@ def test_conditioning_column_mapping() -> None:
     assert sample.reference_audio == "/tmp/ref.wav"
     assert sample.reference_text == "Selam"
     assert sample.speaker_id == "7"
+
+
+def test_passes_local_data_files_to_dataset_loader() -> None:
+    dataset = FakeDataset([{"text": "Merhaba"}])
+    calls: list[dict[str, Any]] = []
+
+    def loader(*_args: Any, **kwargs: Any) -> FakeDataset:
+        calls.append(kwargs)
+        return dataset
+
+    load_samples(DatasetConfig(path="json", data_files="/data/prompts.jsonl", text_column="text"), loader=loader)
+
+    assert calls[0]["data_files"] == "/data/prompts.jsonl"

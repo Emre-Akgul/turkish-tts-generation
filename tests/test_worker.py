@@ -1,6 +1,8 @@
 """Dependency-free worker helper tests."""
 
-from turkish_tts_generation.worker import _reference
+import random
+
+from turkish_tts_generation.worker import _reference, _seed_everything
 
 
 def test_reference_audio_is_optional_and_prefers_explicit_values() -> None:
@@ -9,3 +11,11 @@ def test_reference_audio_is_optional_and_prefers_explicit_values() -> None:
     assert _reference({}, options) == "/models/default.wav"
     assert _reference({}, {**options, "reference_audio": "/target.wav"}) == "/target.wav"
     assert _reference({"reference_audio": "/sample.wav"}, options) == "/sample.wav"
+
+
+def test_seed_everything_seeds_standard_random() -> None:
+    _seed_everything(17)
+    first = random.random()
+    _seed_everything(17)
+
+    assert random.random() == first

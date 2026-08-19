@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import json
+import random
 import sys
 import time
 from pathlib import Path
@@ -20,6 +21,29 @@ def _device(value: str) -> str:
 def _reference(item: dict[str, Any], options: dict[str, Any]) -> str | None:
     value = item.get("reference_audio") or options.get("reference_audio") or options.get("_default_reference_audio")
     return str(value) if value else None
+
+
+def _release_cuda_cache() -> None:
+    with contextlib.suppress(ImportError):
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+def _seed_everything(seed: int) -> None:
+    """Seed available backend RNGs without adding worker dependencies."""
+    random.seed(seed)
+    with contextlib.suppress(ImportError):
+        import numpy
+
+        numpy.random.seed(seed)
+    with contextlib.suppress(ImportError):
+        import torch
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
 
 
 class Backend:
@@ -57,7 +81,6 @@ class VoxCPMBackend(Backend):
             max_len=int(self.options.get("max_len", 4096)),
             normalize=bool(self.options.get("normalize", True)),
             denoise=False,
-            seed=int(self.options.get("seed", 42)),
         )
         self.sf.write(item["output_path"], audio, self.sample_rate)
         return self.sample_rate, len(audio) / self.sample_rate
@@ -301,6 +324,8 @@ def _serve(backend: Backend) -> None:
                 )
             except Exception as error:  # noqa: BLE001
                 results.append({"sample_id": item["sample_id"], "error": f"{type(error).__name__}: {error}"})
+            finally:
+                _release_cuda_cache()
         print(json.dumps({"results": results}), flush=True)
 
 
@@ -313,11 +338,11 @@ def main() -> None:
     parser.add_argument("--dtype", default="auto")
     parser.add_argument("--options", default="{}")
     args = parser.parse_args()
+    options = json.loads(args.options)
+    _seed_everything(int(options.get("seed", 42)))
     try:
         with contextlib.redirect_stdout(sys.stderr):
-            backend = BACKENDS[args.engine](
-                args.model_path, _device(args.device), json.loads(args.options), args.companion_path
-            )
+            backend = BACKENDS[args.engine](args.model_path, _device(args.device), options, args.companion_path)
     except Exception as error:  # noqa: BLE001
         print(json.dumps({"ready": False, "error": f"{type(error).__name__}: {error}"}), flush=True)
         return
