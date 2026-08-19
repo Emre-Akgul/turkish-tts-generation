@@ -93,6 +93,11 @@ class ChatterboxBackend(Backend):
 
         self.torchaudio = torchaudio
         self.options = options
+        # chatterbox-tts==0.1.7 hardcodes this filename in from_local(); the
+        # published checkpoint ships it as t3_mtl23ls_v3.safetensors instead.
+        expected_t3 = model_path / "t3_mtl23ls_v2.safetensors"
+        if not expected_t3.exists():
+            expected_t3.symlink_to(model_path / "t3_mtl23ls_v3.safetensors")
         self.model = ChatterboxMultilingualTTS.from_local(str(model_path), device)
         self.sample_rate = int(self.model.sr)
 
