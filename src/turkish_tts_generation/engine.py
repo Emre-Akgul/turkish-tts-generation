@@ -227,6 +227,16 @@ def create_default_registry() -> EngineRegistry:
     """Create the built-in engine registry."""
     registry = EngineRegistry()
     registry.register("noop", NoopEngine)
-    for name in ("voxcpm", "chatterbox", "f5-tts", "moss-tts", "supertonic", "xtts", "omnivoice", "freya"):
+    for name in (
+        "voxcpm",
+        "chatterbox",
+        "f5-tts",
+        "moss-tts",
+        "supertonic",
+        "xtts",
+        "omnivoice",
+        "freya",
+        "fish-speech",
+    ):
         registry.register(name, lambda name=name: SubprocessEngine(name))
     return registry

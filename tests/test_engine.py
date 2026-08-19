@@ -38,6 +38,7 @@ def test_default_registry_has_every_architecture() -> None:
         "supertonic",
         "voxcpm",
         "xtts",
+        "fish-speech",
     }
     assert isinstance(registry.create("voxcpm"), SubprocessEngine)
 
