@@ -15,6 +15,7 @@ Generate comparable Turkish TTS samples from a local JSONL file or Hugging Face 
 | XTTS-v2 | `xtts` | optional reference or speaker ID |
 | OmniVoice | `omnivoice` | text, optional reference |
 | Freya-TTS | `freya` | deterministic seed voice |
+| Fish Audio S2 Pro | `fish-speech` | text, optional reference |
 
 Trendyol-TTS and VoxCPM2 intentionally use the same `voxcpm` engine. Model aliases and exact Hugging Face IDs are both accepted.
 
@@ -44,7 +45,7 @@ make setup-runtime ENGINE=voxcpm
 make setup-runtime ENGINE=supertonic
 ```
 
-There are nine models and eight engine environments. Use `ENGINE=all` to install every environment. They are kept under `.runtimes/` because their Torch and Transformers requirements conflict. Set `TTS_RUNTIME_ROOT` to stage them elsewhere, or override one interpreter with, for example, `TTS_VOXCPM_PYTHON=/path/to/python`.
+There are ten models and nine engine environments. Use `ENGINE=all` to install every environment. They are kept under `.runtimes/` because their Torch and Transformers requirements conflict. Set `TTS_RUNTIME_ROOT` to stage them elsewhere, or override one interpreter with, for example, `TTS_VOXCPM_PYTHON=/path/to/python`.
 
 ## 4. Configure and run
 
@@ -87,14 +88,14 @@ Use repeatable `--target NAME` and `--sample-id ID` options to run one model or 
 
 The public [`data/turkish_arena_v1.jsonl`](data/turkish_arena_v1.jsonl) bank contains 240 original Turkish prompts under CC0. It has exact category and length quotas and automated structural validation; it is intentionally marked `automated_only`, not human-reviewed.
 
-Validate the prompt contract and plan the full nine-model matrix:
+Validate the prompt contract and plan the full ten-model matrix:
 
 ```bash
 uv run tts-validate-prompts data/turkish_arena_v1.jsonl
 uv run tts-generate --config configs/arena-v1.yaml --dry-run
 ```
 
-The dry run must report `planned=2160`. Checkpoint commits and top-level runtime requirements are pinned. On first installation of an engine, its complete resolved package set is saved under `runtime-locks/`; later installations reuse that lock.
+The dry run must report `planned=2400`. Checkpoint commits and top-level runtime requirements are pinned. On first installation of an engine, its complete resolved package set is saved under `runtime-locks/`; later installations reuse that lock.
 
 For limited disk space, stage one model at a time. Replace `/safe/staging` with an explicit directory on a disk that passes the built-in 8 GiB headroom checks:
 

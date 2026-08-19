@@ -37,6 +37,10 @@ RUNTIME_REQUIREMENTS: dict[str, tuple[str, ...]] = {
         "safetensors",
         "voxcpm==2.0.3",
     ),
+    "fish-speech": (
+        "git+https://github.com/fishaudio/fish-speech.git@e5e292632cb11e7a27b2b7487f58f612bc101e13",
+        "soundfile==0.14.0",
+    ),
 }
 
 FREYA_SOURCE_URL = "https://github.com/freyavoiceai/FreyaTTS.git"

@@ -252,6 +252,62 @@ class OmniVoiceBackend(Backend):
         return self.sample_rate, len(audio) / self.sample_rate
 
 
+class FishSpeechBackend(Backend):
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        import torch
+        from fish_speech.inference_engine import TTSInferenceEngine
+        from fish_speech.models.dac.inference import load_model as load_decoder_model
+        from fish_speech.models.text2semantic.inference import launch_thread_safe_queue
+
+        self.options = options
+        precision = torch.half if options.get("half") else torch.bfloat16
+        llama_queue = launch_thread_safe_queue(
+            checkpoint_path=model_path,
+            device=device,
+            precision=precision,
+            compile=bool(options.get("compile", False)),
+        )
+        decoder_model = load_decoder_model(
+            config_name=str(options.get("decoder_config_name", "modded_dac_vq")),
+            checkpoint_path=model_path / "codec.pth",
+            device=device,
+        )
+        self.engine = TTSInferenceEngine(
+            llama_queue=llama_queue,
+            decoder_model=decoder_model,
+            compile=bool(options.get("compile", False)),
+            precision=precision,
+        )
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import soundfile as sf
+        from fish_speech.utils.schema import ServeReferenceAudio, ServeTTSRequest
+
+        reference = _reference(item, self.options)
+        reference_text = item.get("reference_text") or self.options.get("reference_text")
+        references = []
+        if reference and reference_text:
+            references = [ServeReferenceAudio(audio=Path(reference).read_bytes(), text=reference_text)]
+        request = ServeTTSRequest(
+            text=item["text"],
+            references=references,
+            seed=int(self.options.get("seed", 42)),
+            max_new_tokens=int(self.options.get("max_new_tokens", 1024)),
+            chunk_length=int(self.options.get("chunk_length", 200)),
+            top_p=float(self.options.get("top_p", 0.8)),
+            repetition_penalty=float(self.options.get("repetition_penalty", 1.1)),
+            temperature=float(self.options.get("temperature", 0.8)),
+        )
+        results = list(self.engine.inference(request))
+        final = next((result for result in results if result.code == "final"), None)
+        if final is None or final.audio is None:
+            error = next((result.error for result in results if result.code == "error"), None)
+            raise RuntimeError(str(error) if error else "fish-speech produced no audio")
+        sample_rate, audio = final.audio
+        sf.write(item["output_path"], audio, sample_rate)
+        return sample_rate, len(audio) / sample_rate
+
+
 class FreyaBackend(Backend):
     def __init__(self, model_path: Path, device: str, options: dict[str, Any], companion: Path | None) -> None:
         if companion is None:
@@ -288,6 +344,7 @@ BACKENDS = {
     "xtts": XTTSBackend,
     "omnivoice": OmniVoiceBackend,
     "freya": FreyaBackend,
+    "fish-speech": FishSpeechBackend,
 }
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Generate TTS samples for every model in the arena config, one at a time,
-# deleting each model's checkpoint and runtime as soon as it verifiably
-# completes. Keeps disk usage to roughly one model + one runtime at a time.
+# Generate TTS samples for every model in the arena config, one at a time.
+# Downloaded checkpoints and installed runtimes are left in place (models
+# already present on TTS_MODEL_ROOT are reused, missing ones are downloaded).
 #
 # Required:
 #   TTS_MODEL_ROOT    staging directory for model checkpoints
@@ -12,6 +12,8 @@
 #   STOP_ON_FAILURE     0 to keep going after a target fails (default: 1)
 #   TTS_HEADROOM_GIB    free-space safety margin required before each
 #                       download/runtime install, in GiB (default: 8)
+#   TTS_CLEANUP         1 to delete each model/runtime after it verifiably
+#                       completes, to save disk (default: 0)
 #
 # Usage:
 #   export TTS_MODEL_ROOT=/media/$USER/your-disk/turkish-tts-models
@@ -40,11 +42,16 @@ if [[ ${#TARGETS[@]} -eq 0 ]]; then
 fi
 
 HEADROOM_GIB="${TTS_HEADROOM_GIB:-8}"
+CLEANUP_FLAG=()
+if [[ "${TTS_CLEANUP:-0}" != "1" ]]; then
+  CLEANUP_FLAG=(--skip-cleanup)
+fi
 
 echo "Staging ${#TARGETS[@]} targets from ${CONFIG}"
 echo "Model root:   ${TTS_MODEL_ROOT}"
 echo "Runtime root: ${TTS_RUNTIME_ROOT}"
 echo "Headroom:     ${HEADROOM_GIB} GiB"
+echo "Cleanup:      ${TTS_CLEANUP:-0}"
 
 FAILED=()
 for target in "${TARGETS[@]}"; do
@@ -55,8 +62,9 @@ for target in "${TARGETS[@]}"; do
       --target "${target}" \
       --model-root "${TTS_MODEL_ROOT}" \
       --runtime-root "${TTS_RUNTIME_ROOT}" \
-      --headroom-gib "${HEADROOM_GIB}"; then
-    echo "==> Done: ${target} (model and runtime removed after verification)"
+      --headroom-gib "${HEADROOM_GIB}" \
+      "${CLEANUP_FLAG[@]}"; then
+    echo "==> Done: ${target}"
   else
     echo "==> FAILED: ${target} (left on disk for inspection, not cleaned up)" >&2
     FAILED+=("${target}")

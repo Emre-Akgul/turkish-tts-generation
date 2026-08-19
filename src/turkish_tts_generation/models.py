@@ -76,6 +76,14 @@ SUPPORTED_MODELS = (
         companion_directory="voxcpm2",
         companion_revision="32279effe8c19989596f05d353d1447f51d9e915",
     ),
+    ModelDefinition(
+        "s2-pro",
+        "fishaudio/s2-pro",
+        "fish-speech",
+        "s2-pro",
+        "1de9996b6be38b745688de084d87a5633f714e4e",
+        default_reference_audio="xtts-v2/samples/tr_sample.wav",
+    ),
 )
 
 
