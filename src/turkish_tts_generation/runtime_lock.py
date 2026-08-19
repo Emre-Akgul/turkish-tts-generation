@@ -10,7 +10,7 @@ from pathlib import Path
 RUNTIME_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "voxcpm": ("voxcpm==2.0.3", "soundfile==0.14.0"),
     "chatterbox": ("chatterbox-tts==0.1.7", "setuptools<81"),
-    "f5-tts": ("f5-tts==1.1.22", "soundfile==0.14.0"),
+    "f5-tts": ("f5-tts==1.1.22", "torch==2.5.1", "torchaudio==2.5.1", "soundfile==0.14.0"),
     "moss-tts": (
         "git+https://github.com/OpenMOSS/MOSS-TTS-Nano.git@cc7bdf19c7639c0870dab22045a33b442760f6be",
         "soundfile==0.14.0",

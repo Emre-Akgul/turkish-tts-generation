@@ -16,3 +16,4 @@ __pycache__/
 models/
 .moss-output/
 runtime-locks/
+.env
