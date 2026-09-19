@@ -560,7 +560,9 @@ class HiggsBackend(Backend):
 
     def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
         import atexit
+        import os
         import subprocess
+        import tempfile
 
         import requests
 
@@ -569,16 +571,24 @@ class HiggsBackend(Backend):
         self.port = int(options.get("port", 8000))
         self.base_url = f"http://127.0.0.1:{self.port}"
         # The worker's own PATH doesn't include this isolated venv's bin/, where
-        # sgl-omni's console script actually lives -- resolve it relative to the
-        # interpreter running this process instead of relying on PATH lookup.
-        sgl_omni = Path(sys.executable).parent / "sgl-omni"
+        # sgl-omni's console script and tools it shells out to (e.g. flashinfer's
+        # JIT build calling `ninja`) actually live -- resolve sgl-omni relative to
+        # the interpreter running this process, and put that bin/ on PATH for the
+        # child so its own subprocesses (like ninja) can find each other too.
+        venv_bin = Path(sys.executable).parent
+        sgl_omni = venv_bin / "sgl-omni"
         command = [str(sgl_omni), "serve", "--model-path", str(model_path), "--port", str(self.port)]
-        self.process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)  # noqa: S603
+        env = os.environ.copy()
+        env["PATH"] = os.pathsep.join(filter(None, (str(venv_bin), env.get("PATH"))))
+        self.log_path = Path(tempfile.gettempdir()) / f"sgl-omni-server-{self.port}.log"
+        log_file = self.log_path.open("w", encoding="utf-8")
+        self.process = subprocess.Popen(command, stdout=log_file, stderr=subprocess.STDOUT, env=env)  # noqa: S603
         atexit.register(self._terminate)
         deadline = time.monotonic() + float(options.get("startup_timeout_seconds", 900))
         while time.monotonic() < deadline:
             if self.process.poll() is not None:
-                raise RuntimeError("sgl-omni server exited during startup")
+                tail = self.log_path.read_text(encoding="utf-8", errors="replace")[-2000:]
+                raise RuntimeError(f"sgl-omni server exited during startup:\n{tail}")
             try:
                 if requests.get(f"{self.base_url}/health", timeout=2).ok:
                     break
