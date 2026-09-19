@@ -300,6 +300,7 @@ DEPENDENCIES = {
     "moss-tts-nano-100m": ("moss-audio-tokenizer-nano", "xtts-reference"),
     "freya-tts": ("voxcpm2-audiovae",),
     "pocket-tts-tr": ("xtts-reference",),
+    "s2-pro": ("xtts-reference",),
     "higgs-tts-3-4b": ("xtts-reference",),
     "firered-tts3": ("xtts-reference",),
     "moss-tts-local-v1.5": ("moss-audio-tokenizer-v2", "xtts-reference"),
