@@ -92,6 +92,10 @@ RUNTIME_REQUIREMENTS: dict[str, tuple[str, ...]] = {
         "transformers>=5.0",
         "torch",
         "torchaudio",
+        # Recent torchaudio delegates file loading to torchcodec; without it,
+        # torchaudio.load() (used internally to encode the reference clip)
+        # raises ImportError at the first real generate() call.
+        "torchcodec",
         "einops",
         "soundfile==0.14.0",
     ),
