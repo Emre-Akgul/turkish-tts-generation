@@ -20,6 +20,7 @@ from turkish_tts_generation.runtime_lock import (
 POST_INSTALL_OVERRIDES = {
     "kani-tts": {"transformers", "nvidia-cudnn-cu13"},
     "pocket-tts": {"nvidia-cudnn-cu13"},
+    "firered": {"flash-attn", "ninja"},
 }
 
 # Engines whose own dependency tree pulls a pre-release package (uv refuses those
@@ -64,6 +65,7 @@ def main() -> None:
             _install_source(
                 root, python, FIRERED_SOURCE_URL, FIRERED_SOURCE_REVISION, "FireRedTTS3", "firered_tts3_source.pth"
             )
+            _install_flash_attn(python)
         if engine == "kani-tts":
             _fix_kani_tts_transformers(python)
         if engine in ("kani-tts", "pocket-tts"):
@@ -110,6 +112,34 @@ def _fix_broken_cudnn(python: Path) -> None:
     subprocess.run(
         ("uv", "pip", "install", "--python", str(python), "--no-deps", "nvidia-cudnn-cu13==9.20.0.48"),
         check=True,
+    )
+
+
+def _install_flash_attn(python: Path) -> None:
+    # flash_attn's setup.py imports torch at build time (to read its CUDA/ABI
+    # version) but doesn't declare torch as a build dependency, so it can't be
+    # resolved together with the rest of the requirements in one isolated-build
+    # install -- torch has to already be importable in the target venv first.
+    # ninja (already pip-installed by this point) also needs to be discoverable:
+    # its console script lives in this venv's own bin/, which isn't on our PATH.
+    import os
+
+    env = os.environ.copy()
+    env["PATH"] = os.pathsep.join(filter(None, (str(python.parent), env.get("PATH"))))
+    env.setdefault("MAX_JOBS", "16")  # cap parallel nvcc jobs to avoid exhausting RAM
+    subprocess.run(
+        (
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            str(python),
+            "--no-build-isolation",
+            "ninja",
+            "flash_attn==2.8.3",
+        ),
+        check=True,
+        env=env,
     )
 
 

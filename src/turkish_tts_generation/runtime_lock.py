@@ -72,10 +72,13 @@ RUNTIME_REQUIREMENTS: dict[str, tuple[str, ...]] = {
         "requests",
     ),
     "firered": (
+        # flash_attn is installed separately below, after torch: its setup.py
+        # imports torch at build time but doesn't declare it as a build
+        # dependency, so it can't be resolved together with the rest in one
+        # isolated-build install.
         "torch==2.8.0",
         "torchaudio==2.8.0",
         "torchcodec==0.7.0",
-        "flash_attn==2.8.3",
         "transformers==5.6.2",
         "einops==0.8.2",
         "python-dotenv",
