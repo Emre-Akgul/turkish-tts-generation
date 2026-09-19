@@ -22,6 +22,11 @@ POST_INSTALL_OVERRIDES = {
     "pocket-tts": {"nvidia-cudnn-cu13"},
 }
 
+# Engines whose own dependency tree pulls a pre-release package (uv refuses those
+# by default). sglang==0.5.19, required by sglang-omni, depends on the pre-release
+# cuda-tile==1.6.0rc5.
+PRERELEASE_ENGINES = {"higgs"}
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -49,7 +54,10 @@ def main() -> None:
             subprocess.run(("uv", "venv", str(root / ".venv"), "--python", "3.11"), check=True)
         lock_file = lock_root / f"{engine}.txt"
         requirements = ("-r", str(lock_file)) if lock_file.is_file() else RUNTIME_REQUIREMENTS[engine]
-        subprocess.run(("uv", "pip", "install", "--python", str(python), *requirements), check=True)
+        prerelease_flag = ("--prerelease=allow",) if engine in PRERELEASE_ENGINES else ()
+        subprocess.run(
+            ("uv", "pip", "install", "--python", str(python), *prerelease_flag, *requirements), check=True
+        )
         if engine == "freya":
             _install_source(root, python, FREYA_SOURCE_URL, FREYA_SOURCE_REVISION, "FreyaTTS", "freya_tts_source.pth")
         if engine == "firered":
