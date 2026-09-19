@@ -568,7 +568,11 @@ class HiggsBackend(Backend):
         self.requests = requests
         self.port = int(options.get("port", 8000))
         self.base_url = f"http://127.0.0.1:{self.port}"
-        command = ["sgl-omni", "serve", "--model-path", str(model_path), "--port", str(self.port)]
+        # The worker's own PATH doesn't include this isolated venv's bin/, where
+        # sgl-omni's console script actually lives -- resolve it relative to the
+        # interpreter running this process instead of relying on PATH lookup.
+        sgl_omni = Path(sys.executable).parent / "sgl-omni"
+        command = [str(sgl_omni), "serve", "--model-path", str(model_path), "--port", str(self.port)]
         self.process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)  # noqa: S603
         atexit.register(self._terminate)
         deadline = time.monotonic() + float(options.get("startup_timeout_seconds", 900))
