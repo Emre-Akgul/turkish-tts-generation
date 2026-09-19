@@ -3,14 +3,24 @@
 from __future__ import annotations
 
 import argparse
-import json
+import hashlib
 import shutil
 from collections import defaultdict
 from pathlib import Path
 
-from turkish_tts_generation.arena_audio import sha256_file
 from turkish_tts_generation.config import GenerationConfig, load_config
+from turkish_tts_generation.contracts import ManifestStatus
+from turkish_tts_generation.io import read_manifest
 from turkish_tts_generation.models import resolve_model
+
+
+def sha256_file(path: Path) -> str:
+    """Hash a file without loading it entirely into memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 RETAINED_DEPENDENCY_FILES = {
     "voxcpm2": {"audiovae.pth"},
@@ -42,25 +52,26 @@ def safe_remove_staged_directory(path: Path, root: Path, *, verified: bool, stil
 
 
 def verify_target_completion(config: GenerationConfig, target_name: str, *, expected_count: int = 240) -> None:
-    """Verify every retained raw and arena asset before allowing cleanup."""
+    """Verify every retained raw audio asset before allowing cleanup."""
     run_root = (config.output.root / config.output.run_name).resolve()
-    manifest = run_root / target_name / "arena-manifest.jsonl"
+    manifest = run_root / target_name / "manifest.jsonl"
     if not manifest.is_file():
-        raise ValueError(f"arena completion manifest is missing: {manifest}")
-    rows = [json.loads(line) for line in manifest.read_text(encoding="utf-8").splitlines() if line.strip()]
-    if len(rows) != expected_count or len({row.get("sample_id") for row in rows}) != expected_count:
-        raise ValueError(f"arena manifest for {target_name} must contain {expected_count} unique samples")
+        raise ValueError(f"generation manifest is missing: {manifest}")
+    rows = read_manifest(manifest)
+    if len(rows) != expected_count or len({row.sample_id for row in rows}) != expected_count:
+        raise ValueError(f"manifest for {target_name} must contain {expected_count} unique samples")
     for row in rows:
-        if row.get("target_name") != target_name:
-            raise ValueError(f"arena manifest contains the wrong target: {target_name}")
-        for path_key, hash_key in (("raw_path", "raw_sha256"), ("arena_path", "normalized_sha256")):
-            asset = (run_root / str(row[path_key])).resolve()
-            try:
-                asset.relative_to(run_root)
-            except ValueError as error:
-                raise ValueError(f"manifest asset is outside run root: {asset}") from error
-            if not asset.is_file() or sha256_file(asset) != row.get(hash_key):
-                raise ValueError(f"manifest asset is missing or changed: {asset}")
+        if row.target_name != target_name:
+            raise ValueError(f"manifest contains the wrong target: {target_name}")
+        if row.status not in {ManifestStatus.SUCCEEDED, ManifestStatus.SKIPPED}:
+            raise ValueError(f"sample is not successful: {row.sample_id}")
+        asset = Path(row.output_path).resolve()
+        try:
+            asset.relative_to(run_root)
+        except ValueError as error:
+            raise ValueError(f"manifest asset is outside run root: {asset}") from error
+        if not asset.is_file() or sha256_file(asset) != row.raw_sha256:
+            raise ValueError(f"manifest asset is missing or changed: {asset}")
 
 
 def _requirements(config: GenerationConfig) -> tuple[dict[str, set[str]], dict[str, set[str]], dict[str, str]]:

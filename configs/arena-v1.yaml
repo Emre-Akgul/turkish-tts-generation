@@ -21,9 +21,18 @@ targets:
   - {name: xtts-v2, engine: xtts, model_id: xtts-v2, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, language: tr}}
   - {name: omnivoice, engine: omnivoice, model_id: omnivoice, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, language: tr, steps: 16, speed: 1.0}}
   - {name: freya, engine: freya, model_id: freya-tts, batch_size: 1, device: cuda, dtype: float32, options: {seed: 9, steps: 32}}
-  - {name: trendyol, engine: voxcpm, model_id: trendyol-tts, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false}}
-  - {name: voxcpm2, engine: voxcpm, model_id: voxcpm2, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false}}
+  - {name: trendyol, engine: voxcpm, model_id: trendyol-tts, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false, normalize: false, inference_timesteps: 10}}
+  - {name: voxcpm2, engine: voxcpm, model_id: voxcpm2, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false, normalize: false, inference_timesteps: 10}}
   - {name: s2-pro, engine: fish-speech, model_id: s2-pro, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, reference_text: "Bir zamanlar 6 yaşındayken muhteşem bir resim gördüm."}}
+  - {name: piper-tr, engine: piper, model_id: piper-tr-dfki, batch_size: 1, device: cpu, dtype: float32, options: {seed: 42, length_scale: 1.0}}
+  - {name: mms-tts-tr, engine: mms-tts, model_id: mms-tts-tur, batch_size: 1, device: cpu, dtype: float32, options: {seed: 42}}
+  - {name: anka-tts, engine: anka-tts, model_id: anka-tts-v0.1, batch_size: 1, device: cuda, dtype: float16, options: {seed: 42, voice: male}}
+  - {name: kizagan, engine: voxcpm, model_id: kizagan-tts-v1, batch_size: 1, device: cpu, dtype: float16, options: {seed: 42, optimize: false, normalize: false, inference_timesteps: 10}}
+  - {name: pocket-tts-tr, engine: pocket-tts, model_id: pocket-tts-tr, batch_size: 1, device: cpu, dtype: float32, options: {seed: 42, sampler_decode_steps: 1}}
+  - {name: kani-tts-tr, engine: kani-tts, model_id: kani-tts-400m-0.3-tr, batch_size: 1, device: cuda, dtype: float32, options: {seed: 42}}
+  - {name: higgs-tts-3, engine: higgs, model_id: higgs-tts-3-4b, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, reference_text: "Bir zamanlar 6 yaşındayken muhteşem bir resim gördüm.", temperature: 0.8, top_k: 50, max_new_tokens: 1024}}
+  - {name: firered-tts3, engine: firered, model_id: firered-tts3, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, language: tr, reference_text: "Bir zamanlar 6 yaşındayken muhteşem bir resim gördüm."}}
+  - {name: moss-tts-v1.5, engine: moss-tts-v1.5, model_id: moss-tts-local-v1.5, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, language: Turkish}}
 
 output:
   root: outputs

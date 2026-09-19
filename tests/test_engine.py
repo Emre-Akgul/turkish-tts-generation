@@ -39,6 +39,14 @@ def test_default_registry_has_every_architecture() -> None:
         "voxcpm",
         "xtts",
         "fish-speech",
+        "piper",
+        "mms-tts",
+        "anka-tts",
+        "pocket-tts",
+        "kani-tts",
+        "higgs",
+        "firered",
+        "moss-tts-v1.5",
     }
     assert isinstance(registry.create("voxcpm"), SubprocessEngine)
 

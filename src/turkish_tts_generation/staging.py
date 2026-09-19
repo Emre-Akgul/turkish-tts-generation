@@ -47,11 +47,10 @@ def stage_target(
     lock_root: Path | None = None,
     headroom_gib: float = 8.0,
     cleanup: bool = True,
-    normalize: bool = True,
     command_runner: CommandRunner = _run,
     cleanup_runner: CleanupRunner = cleanup_completed_assets,
 ) -> list[Path]:
-    """Install, download, smoke, generate, optionally normalize, verify, and clean one target."""
+    """Install, download, smoke, generate, verify, and clean one target."""
     config = load_config(config_path)
     targets = {target.name: target for target in config.targets}
     try:
@@ -123,27 +122,14 @@ def stage_target(
         ),
         environment,
     )
-    if normalize:
-        command_runner(
-            (
-                python,
-                "-m",
-                "turkish_tts_generation.arena_audio",
-                "--config",
-                str(config_path),
-                "--target",
-                target_name,
-            ),
-            environment,
-        )
     run_root = config.output.root / config.output.run_name
     discovered = {
         configured.name
         for configured in config.targets
-        if (run_root / configured.name / "arena-manifest.jsonl").is_file()
+        if (run_root / configured.name / "manifest.jsonl").is_file()
     }
     completed = set(completed_targets or ()) | discovered | {target_name}
-    if not cleanup or not normalize:
+    if not cleanup:
         return []
     return cleanup_runner(
         config,
@@ -165,7 +151,6 @@ def main(args: list[str] | None = None) -> int:
     parser.add_argument("--completed-target", action="append", default=[])
     parser.add_argument("--headroom-gib", type=float, default=8.0)
     parser.add_argument("--skip-cleanup", action="store_true")
-    parser.add_argument("--skip-normalize", action="store_true")
     options = parser.parse_args(args)
     try:
         removed = stage_target(
@@ -177,7 +162,6 @@ def main(args: list[str] | None = None) -> int:
             lock_root=options.lock_root,
             headroom_gib=options.headroom_gib,
             cleanup=not options.skip_cleanup,
-            normalize=not options.skip_normalize,
         )
     except (OSError, subprocess.CalledProcessError, ValueError) as error:
         print(f"error: {error}")

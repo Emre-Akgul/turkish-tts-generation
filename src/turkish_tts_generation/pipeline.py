@@ -3,6 +3,7 @@
 import hashlib
 import re
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from turkish_tts_generation.config import DatasetConfig, GenerationConfig, TargetConfig
@@ -120,7 +121,13 @@ class GenerationRunner:
         # A filtered run (e.g. the smoke sample subset) must not drop the manifest
         # history for sample IDs outside its own selection.
         covered_ids = {sample.sample_id for sample in samples}
-        merged = [*records, *(record for sample_id, record in completed.items() if sample_id not in covered_ids)]
+        current_prompt_bank_sha256 = self._prompt_bank_sha256()
+        retained = (
+            replace(record, prompt_bank_sha256=current_prompt_bank_sha256)
+            for sample_id, record in completed.items()
+            if sample_id not in covered_ids
+        )
+        merged = [*records, *retained]
         merged.sort(key=lambda record: record.source_index)
         write_manifest(output_manifest_path, merged)
         return summary

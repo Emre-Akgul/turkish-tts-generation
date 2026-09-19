@@ -46,6 +46,15 @@ def test_safe_cleanup_refuses_root_nested_and_symlink_targets(tmp_path: Path) ->
 def test_shared_asset_and_runtime_dependencies_are_retained() -> None:
     models, runtimes, _owners = _requirements(load_config(ARENA_CONFIG))
 
-    assert models["xtts-v2"] == {"xtts-v2", "orkhon", "moss-nano", "s2-pro"}
+    assert models["xtts-v2"] == {
+        "xtts-v2",
+        "orkhon",
+        "moss-nano",
+        "s2-pro",
+        "pocket-tts-tr",
+        "higgs-tts-3",
+        "firered-tts3",
+        "moss-tts-v1.5",
+    }
     assert models["voxcpm2"] == {"voxcpm2", "freya"}
-    assert runtimes["voxcpm"] == {"trendyol", "voxcpm2"}
+    assert runtimes["voxcpm"] == {"trendyol", "voxcpm2", "kizagan"}

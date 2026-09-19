@@ -16,8 +16,17 @@ Generate comparable Turkish TTS samples from a local JSONL file or Hugging Face 
 | OmniVoice | `omnivoice` | text, optional reference |
 | Freya-TTS | `freya` | deterministic seed voice |
 | Fish Audio S2 Pro | `fish-speech` | text, optional reference |
+| Piper (tr_TR, dfki) | `piper` | text |
+| MMS-TTS (Turkish) | `mms-tts` | text |
+| Anka-TTS v0.1 | `anka-tts` | built-in voice or reference (CC-BY-NC-4.0 weights) |
+| Kızagan-TTS v1.0 | `voxcpm` | text |
+| Pocket TTS (Turkish) | `pocket-tts` | reference audio |
+| Kani-TTS 400M (Turkish) | `kani-tts` | text (no speaker selection on this checkpoint) |
+| Higgs TTS 3 (4B) | `higgs` | optional reference; needs ~40GB VRAM, self-hosted via SGLang-Omni server |
+| FireRedTTS3 | `firered` | reference audio + transcript; needs `flash_attn` build |
+| MOSS-TTS-Local-Transformer v1.5 | `moss-tts-v1.5` | text, optional reference |
 
-Trendyol-TTS and VoxCPM2 intentionally use the same `voxcpm` engine. Model aliases and exact Hugging Face IDs are both accepted.
+Trendyol-TTS, VoxCPM2 and Kızagan-TTS intentionally use the same `voxcpm` engine. Model aliases and exact Hugging Face IDs are both accepted. Anka-TTS's weights are CC-BY-NC-4.0 (non-commercial); confirm that's acceptable before publishing samples generated with it. Higgs TTS 3, FireRedTTS3, and MOSS-TTS-Local-Transformer v1.5 are large models (8-19GB checkpoints, multi-GB VRAM) intended for a bigger GPU than this repo's default dev machine — implemented but not smoke-tested locally.
 
 ## 1. Install the job runner
 
@@ -107,7 +116,7 @@ uv run tts-stage --config configs/arena-v1.yaml --target supertonic-3 \
   --model-root "$TTS_MODEL_ROOT" --runtime-root "$TTS_RUNTIME_ROOT"
 ```
 
-The stage command installs the pinned runtime, downloads only the selected model and required companions, runs the cross-category smoke set, resumes the full 240 prompts, prepares arena audio, verifies hashes, discovers previously completed targets, and performs guarded cleanup. Its equivalent individual commands are:
+The stage command installs the pinned runtime, downloads only the selected model and required companions, runs the cross-category smoke set, resumes the full 240 prompts, verifies hashes, discovers previously completed targets, and performs guarded cleanup. Its equivalent individual commands are:
 
 ```bash
 uv run python scripts/setup_runtime.py supertonic --runtime-root "$TTS_RUNTIME_ROOT"
@@ -120,10 +129,9 @@ uv run tts-generate --config configs/arena-v1.yaml --target supertonic-3 \
   --sample-id tr-arena-v1-0181 --sample-id tr-arena-v1-0200 \
   --sample-id tr-arena-v1-0217 --sample-id tr-arena-v1-0232
 uv run tts-generate --config configs/arena-v1.yaml --target supertonic-3
-uv run tts-prepare-arena --config configs/arena-v1.yaml --target supertonic-3
 ```
 
-After all 240 raw and standardized files for completed targets validate, remove recoverable staging assets with:
+After all 240 raw files for completed targets validate, remove recoverable staging assets with:
 
 ```bash
 uv run tts-cleanup --config configs/arena-v1.yaml \
@@ -133,7 +141,7 @@ uv run tts-cleanup --config configs/arena-v1.yaml \
 
 Cleanup refuses missing or changed outputs, paths outside the explicit staging roots, and assets still required by an incomplete target. Shared XTTS reference audio and VoxCPM2 AudioVAE files are retained until their final consumers complete. Deleted checkpoints and runtimes can be reconstructed from the recorded revisions and lock files.
 
-Arena-ready files are mono 48 kHz, 16-bit PCM WAV normalized with two-pass EBU R128 processing to -23 LUFS and at most -1 dBTP. Raw files are retained unchanged. Each target receives an `arena-manifest.jsonl` containing relative paths and hashes for both forms.
+Generated files are published as-is from the raw `manifest.jsonl`, with no separate loudness-normalization pass.
 
 ## Engine options
 

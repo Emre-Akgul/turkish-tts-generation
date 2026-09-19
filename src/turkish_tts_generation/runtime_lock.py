@@ -41,10 +41,57 @@ RUNTIME_REQUIREMENTS: dict[str, tuple[str, ...]] = {
         "git+https://github.com/fishaudio/fish-speech.git@e5e292632cb11e7a27b2b7487f58f612bc101e13",
         "soundfile==0.14.0",
     ),
+    "piper": ("piper-tts==1.8.0", "soundfile==0.14.0"),
+    "mms-tts": (
+        "transformers==4.43.4",
+        "torch==2.5.1",
+        "soundfile==0.14.0",
+    ),
+    "anka-tts": (
+        "anka-tts[tts]==0.1.6",
+        "f5-tts==1.1.22",
+        "torch==2.5.1",
+        "torchaudio==2.5.1",
+        "soundfile==0.14.0",
+        "datasets>=4.0",
+    ),
+    "pocket-tts": ("pocket-tts[audio]==3.1.0", "pyyaml>=6.0"),
+    "kani-tts": ("kani-tts==1.0.1", "soundfile==0.14.0"),
+    # Higgs TTS 3 ships weights + config only (no direct from_pretrained inference
+    # path); the model card's own AGENTS.md directs self-hosting through this
+    # SGLang-Omni server, which exposes an OpenAI-compatible /v1/audio/speech API.
+    "higgs": (
+        "git+https://github.com/sgl-project/sglang-omni.git@ebd577ea0696a1510fdec8aad1ca8b44b5b3522f",
+        "requests",
+    ),
+    "firered": (
+        "torch==2.8.0",
+        "torchaudio==2.8.0",
+        "torchcodec==0.7.0",
+        "flash_attn==2.8.3",
+        "transformers==5.6.2",
+        "einops==0.8.2",
+        "python-dotenv",
+        "regex",
+        "wetext",
+        "fasttext",
+        "faster-whisper",
+        "soundfile==0.14.0",
+    ),
+    "moss-tts-v1.5": (
+        "transformers>=5.0",
+        "torch",
+        "torchaudio",
+        "einops",
+        "soundfile==0.14.0",
+    ),
 }
 
 FREYA_SOURCE_URL = "https://github.com/freyavoiceai/FreyaTTS.git"
 FREYA_SOURCE_REVISION = "146d36c1cb6660646be57d31339db4eed9315de3"
+
+FIRERED_SOURCE_URL = "https://github.com/FireRedTeam/FireRedTTS3.git"
+FIRERED_SOURCE_REVISION = "7a1f3a7282ff184cc1c7f070556baaf5f08b5216"
 
 
 def runtime_lock_sha256(engine: str) -> str:

@@ -137,6 +137,11 @@ class SubprocessEngine:
         env = os.environ.copy()
         source_root = str(Path(__file__).resolve().parents[1])
         env["PYTHONPATH"] = os.pathsep.join(filter(None, (source_root, env.get("PYTHONPATH"))))
+        if target.device == "cpu":
+            # Some backends auto-detect a GPU internally instead of honoring the
+            # configured device; hiding CUDA from the subprocess makes those
+            # torch.cuda.is_available() checks reliably false.
+            env["CUDA_VISIBLE_DEVICES"] = ""
         self.process = subprocess.Popen(  # noqa: S603
             command,
             stdin=subprocess.PIPE,
@@ -237,6 +242,14 @@ def create_default_registry() -> EngineRegistry:
         "omnivoice",
         "freya",
         "fish-speech",
+        "piper",
+        "mms-tts",
+        "anka-tts",
+        "pocket-tts",
+        "kani-tts",
+        "higgs",
+        "firered",
+        "moss-tts-v1.5",
     ):
         registry.register(name, lambda name=name: SubprocessEngine(name))
     return registry

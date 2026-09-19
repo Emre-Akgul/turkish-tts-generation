@@ -3,9 +3,11 @@
 import argparse
 import contextlib
 import json
+import os
 import random
 import sys
 import time
+import traceback
 from pathlib import Path
 from typing import Any
 
@@ -69,25 +71,49 @@ class VoxCPMBackend(Backend):
         self.sample_rate = int(self.model.tts_model.sample_rate)
 
     def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import numpy as np
+
         reference = _reference(item, self.options)
         reference_text = item.get("reference_text") or self.options.get("reference_text")
-        audio = self.model.generate(
-            text=item["text"],
-            prompt_wav_path=reference if reference_text else None,
-            prompt_text=reference_text,
-            reference_wav_path=reference if not reference_text else None,
-            cfg_value=float(self.options.get("cfg_value", 2.0)),
-            inference_timesteps=int(self.options.get("inference_timesteps", 16)),
-            max_len=int(self.options.get("max_len", 4096)),
-            normalize=bool(self.options.get("normalize", True)),
-            denoise=False,
-        )
+        attempts = int(self.options.get("saturation_retries", 5)) + 1
+        base_seed = int(self.options.get("seed", 42))
+        saturation_threshold = float(self.options.get("saturation_threshold", 0.5))
+        audio = None
+        for attempt in range(attempts):
+            _seed_everything(base_seed + attempt)
+            candidate = self.model.generate(
+                text=item["text"],
+                prompt_wav_path=reference if reference_text else None,
+                prompt_text=reference_text,
+                reference_wav_path=reference if not reference_text else None,
+                cfg_value=float(self.options.get("cfg_value", 2.0)),
+                inference_timesteps=int(self.options.get("inference_timesteps", 10)),
+                max_len=int(self.options.get("max_len", 4096)),
+                # Preserve benchmark input verbatim unless normalization is explicitly
+                # requested. VoxCPM's normalizer treats every non-Chinese language as
+                # English and crashes on valid Turkish forms such as "%25".
+                normalize=bool(self.options.get("normalize", False)),
+                denoise=False,
+            )
+            clipped_fraction = float(np.mean(np.abs(candidate) >= 0.999))
+            if np.isfinite(candidate).all() and clipped_fraction <= saturation_threshold:
+                audio = candidate
+                break
+            print(
+                f"Saturated VoxCPM output for {item['sample_id']} "
+                f"(fraction={clipped_fraction:.4f}); retrying with seed {base_seed + attempt + 1}",
+                file=sys.stderr,
+            )
+        if audio is None:
+            raise RuntimeError(f"VoxCPM remained saturated after {attempts} deterministic attempts")
         self.sf.write(item["output_path"], audio, self.sample_rate)
         return self.sample_rate, len(audio) / self.sample_rate
 
 
 class ChatterboxBackend(Backend):
     def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        import tempfile
+
         import torchaudio
         from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
@@ -96,9 +122,20 @@ class ChatterboxBackend(Backend):
         # chatterbox-tts==0.1.7 hardcodes this filename in from_local(); the
         # published checkpoint ships it as t3_mtl23ls_v3.safetensors instead.
         expected_t3 = model_path / "t3_mtl23ls_v2.safetensors"
+        load_path = model_path
         if not expected_t3.exists():
-            expected_t3.symlink_to(model_path / "t3_mtl23ls_v3.safetensors")
-        self.model = ChatterboxMultilingualTTS.from_local(str(model_path), device)
+            try:
+                expected_t3.symlink_to(model_path / "t3_mtl23ls_v3.safetensors")
+            except OSError:
+                # FAT/exFAT model drives do not support symlinks. Build a tiny
+                # compatibility view on the local filesystem rather than copying
+                # the multi-gigabyte checkpoint just to provide its legacy name.
+                self._compat_directory = tempfile.TemporaryDirectory(prefix="chatterbox-model-")
+                load_path = Path(self._compat_directory.name)
+                for child in model_path.iterdir():
+                    (load_path / child.name).symlink_to(child, target_is_directory=child.is_dir())
+                (load_path / expected_t3.name).symlink_to(model_path / "t3_mtl23ls_v3.safetensors")
+        self.model = ChatterboxMultilingualTTS.from_local(str(load_path), device)
         self.sample_rate = int(self.model.sr)
 
     def generate(self, item: dict[str, Any]) -> tuple[int, float]:
@@ -350,6 +387,306 @@ class FreyaBackend(Backend):
         return self.sample_rate, len(wav) / self.sample_rate
 
 
+class PiperBackend(Backend):
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        from piper import PiperVoice
+
+        self.options = options
+        onnx_path = next(model_path.rglob("*.onnx"))
+        self.voice = PiperVoice.load(str(onnx_path), use_cuda=device.startswith("cuda"))
+        self.sample_rate = self.voice.config.sample_rate
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import wave
+
+        from piper.config import SynthesisConfig
+
+        syn_config = SynthesisConfig(
+            length_scale=float(self.options.get("length_scale", 1.0)),
+            noise_scale=float(self.options.get("noise_scale", 0.667)),
+            noise_w_scale=float(self.options.get("noise_w_scale", 0.8)),
+        )
+        with wave.open(item["output_path"], "wb") as wav_file:
+            self.voice.synthesize_wav(item["text"], wav_file, syn_config=syn_config)
+        import soundfile as sf
+
+        info = sf.info(item["output_path"])
+        return info.samplerate, info.duration
+
+
+class MMSBackend(Backend):
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        import torch
+        from transformers import AutoTokenizer, VitsModel
+
+        self.options = options
+        self.torch = torch
+        self.device = device
+        self.model = VitsModel.from_pretrained(str(model_path)).to(device).eval()
+        self.tokenizer = AutoTokenizer.from_pretrained(str(model_path))
+        self.sample_rate = int(self.model.config.sampling_rate)
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import soundfile as sf
+
+        inputs = self.tokenizer(item["text"], return_tensors="pt")
+        inputs = {key: value.to(self.device) for key, value in inputs.items()}
+        with self.torch.no_grad():
+            waveform = self.model(**inputs).waveform
+        audio = waveform.squeeze().cpu().float().numpy()
+        sf.write(item["output_path"], audio, self.sample_rate)
+        return self.sample_rate, len(audio) / self.sample_rate
+
+
+class AnkaBackend(Backend):
+    sample_rate = 24000
+
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        from anka import AnkaTTS
+
+        self.options = options
+        self.model = AnkaTTS.from_pretrained(str(model_path), device=device)
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        reference = _reference(item, self.options)
+        reference_text = item.get("reference_text") or self.options.get("reference_text")
+        kwargs: dict[str, Any] = {"seed": int(self.options.get("seed", 42))}
+        if self.options.get("speed") is not None:
+            kwargs["speed"] = float(self.options["speed"])
+        if self.options.get("nfe_step") is not None:
+            kwargs["nfe_step"] = int(self.options["nfe_step"])
+        if self.options.get("cfg_strength") is not None:
+            kwargs["cfg_strength"] = float(self.options["cfg_strength"])
+        if reference:
+            kwargs["ref_audio"] = reference
+            kwargs["ref_text"] = reference_text
+        else:
+            kwargs["voice"] = str(self.options.get("voice", "male"))
+        wav = self.model.synthesize(item["text"], **kwargs)
+        self.model.save_wav(wav, item["output_path"])
+        return self.sample_rate, len(wav) / self.sample_rate
+
+
+class PocketBackend(Backend):
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        import yaml
+        from pocket_tts import TTSModel
+
+        self.options = options
+        raw_config = yaml.safe_load((model_path / "config.yaml").read_text(encoding="utf-8"))
+        raw_config["weights_path"] = str(model_path / "model.safetensors")
+        raw_config["flow_lm"]["lookup_table"]["tokenizer_path"] = str(model_path / "tokenizer.model")
+        patched_config = model_path / "_patched_config.yaml"
+        patched_config.write_text(yaml.safe_dump(raw_config), encoding="utf-8")
+        self.model = TTSModel.load_model(
+            config=str(patched_config),
+            temp=options.get("temperature"),
+            sampler_decode_steps=int(options.get("sampler_decode_steps", 1)),
+            quantize=bool(options.get("quantize", False)),
+        )
+        self.model.to(device)
+        self.sample_rate = int(self.model.sample_rate)
+        self._pcm16_cache: dict[str, str] = {}
+
+    def _as_pcm16(self, path: str) -> str:
+        # pocket-tts's own WAV reader is the stdlib `wave` module, which raises on
+        # non-integer PCM (e.g. our float32 reference clips) before it ever reaches
+        # its soundfile fallback. Re-encode once per process and reuse the copy.
+        cached = self._pcm16_cache.get(path)
+        if cached:
+            return cached
+        import tempfile
+
+        import soundfile as sf
+
+        if sf.info(path).subtype == "PCM_16":
+            self._pcm16_cache[path] = path
+            return path
+        data, sample_rate = sf.read(path)
+        descriptor, converted = tempfile.mkstemp(suffix=".wav")
+        os.close(descriptor)
+        sf.write(converted, data, sample_rate, subtype="PCM_16")
+        self._pcm16_cache[path] = converted
+        return converted
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import soundfile as sf
+
+        reference = _reference(item, self.options)
+        if not reference:
+            raise FileNotFoundError("pocket-tts requires a reference audio prompt")
+        state = self.model.get_state_for_audio_prompt(self._as_pcm16(reference))
+        frames_after_eos = self.options.get("frames_after_eos")
+        audio = self.model.generate_audio(
+            state,
+            item["text"],
+            frames_after_eos=int(frames_after_eos) if frames_after_eos is not None else None,
+        )
+        waveform = audio.squeeze(0).detach().cpu().numpy()
+        sf.write(item["output_path"], waveform, self.sample_rate)
+        return self.sample_rate, float(waveform.shape[-1]) / self.sample_rate
+
+
+class KaniBackend(Backend):
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        from kani_tts import KaniTTS
+
+        self.options = options
+        self.model = KaniTTS(str(model_path), device_map=device, show_info=False)
+        self.sample_rate = int(self.model.sample_rate)
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import soundfile as sf
+
+        speaker = item.get("speaker_id") or self.options.get("speaker_id")
+        audio, _ = self.model.generate(
+            item["text"],
+            speaker_id=speaker,
+            temperature=float(self.options.get("temperature", 1.0)),
+            top_p=float(self.options.get("top_p", 0.95)),
+            repetition_penalty=float(self.options.get("repetition_penalty", 1.1)),
+        )
+        sf.write(item["output_path"], audio, self.sample_rate)
+        return self.sample_rate, float(len(audio)) / self.sample_rate
+
+
+class HiggsBackend(Backend):
+    """Higgs TTS 3 ships weights only; the model card's own AGENTS.md directs
+    self-hosting through an SGLang-Omni server exposing an OpenAI-compatible
+    /v1/audio/speech endpoint. This backend manages that server as a subprocess.
+    """
+
+    sample_rate = 24000
+
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        import atexit
+        import subprocess
+
+        import requests
+
+        self.options = options
+        self.requests = requests
+        self.port = int(options.get("port", 8000))
+        self.base_url = f"http://127.0.0.1:{self.port}"
+        command = ["sgl-omni", "serve", "--model-path", str(model_path), "--port", str(self.port)]
+        self.process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)  # noqa: S603
+        atexit.register(self._terminate)
+        deadline = time.monotonic() + float(options.get("startup_timeout_seconds", 900))
+        while time.monotonic() < deadline:
+            if self.process.poll() is not None:
+                raise RuntimeError("sgl-omni server exited during startup")
+            try:
+                if requests.get(f"{self.base_url}/health", timeout=2).ok:
+                    break
+            except requests.exceptions.RequestException:
+                pass
+            time.sleep(2)
+        else:
+            self._terminate()
+            raise RuntimeError("sgl-omni server did not become ready in time")
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import soundfile as sf
+
+        reference = _reference(item, self.options)
+        reference_text = item.get("reference_text") or self.options.get("reference_text")
+        payload: dict[str, Any] = {
+            "input": item["text"],
+            "temperature": float(self.options.get("temperature", 0.8)),
+            "top_k": int(self.options.get("top_k", 50)),
+            "max_new_tokens": int(self.options.get("max_new_tokens", 1024)),
+        }
+        if reference:
+            payload["references"] = [{"audio_path": reference, "text": reference_text or ""}]
+        response = self.requests.post(f"{self.base_url}/v1/audio/speech", json=payload, timeout=300)
+        response.raise_for_status()
+        Path(item["output_path"]).write_bytes(response.content)
+        info = sf.info(item["output_path"])
+        return info.samplerate, info.duration
+
+    def _terminate(self) -> None:
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=10)
+            except Exception:  # noqa: BLE001
+                self.process.kill()
+
+
+class FireRedBackend(Backend):
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        from fireredtts3.core import FireRedTTS3
+
+        self.options = options
+        self.tts = FireRedTTS3(
+            str(model_path),
+            use_wetext=bool(options.get("use_wetext", True)),
+            use_llm_tn=bool(options.get("use_llm_tn", False)),
+        )
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import torchaudio
+
+        reference = _reference(item, self.options)
+        if not reference:
+            raise FileNotFoundError("firered requires a reference audio prompt")
+        reference_text = item.get("reference_text") or self.options.get("reference_text") or ""
+        prompt_audio, prompt_audio_sr = torchaudio.load(reference)
+        gen_audio, gen_audio_sr = self.tts.generate(
+            language=self.options.get("language"),
+            prompt_text=reference_text,
+            prompt_audio=prompt_audio,
+            prompt_audio_sr=prompt_audio_sr,
+            text=item["text"],
+            do_tn=bool(self.options.get("do_tn", True)),
+        )
+        torchaudio.save(item["output_path"], gen_audio.cpu(), gen_audio_sr)
+        return gen_audio_sr, float(gen_audio.shape[-1]) / gen_audio_sr
+
+
+class MossV15Backend(Backend):
+    def __init__(self, model_path: Path, device: str, options: dict[str, Any], _companion: Path | None) -> None:
+        import torch
+        from transformers import AutoModel, AutoProcessor
+
+        self.options = options
+        self.torch = torch
+        self.device = device
+        dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
+        self.processor = AutoProcessor.from_pretrained(str(model_path), trust_remote_code=True)
+        self.processor.audio_tokenizer = self.processor.audio_tokenizer.to(device)
+        self.model = AutoModel.from_pretrained(str(model_path), trust_remote_code=True, torch_dtype=dtype).to(device)
+        self.model.eval()
+
+    def generate(self, item: dict[str, Any]) -> tuple[int, float]:
+        import torchaudio
+
+        reference = _reference(item, self.options)
+        kwargs: dict[str, Any] = {"text": item["text"], "language": self.options.get("language", "Turkish")}
+        if reference:
+            kwargs["reference"] = [reference]
+        message = self.processor.build_user_message(**kwargs)
+        batch = self.processor([[message]], mode="generation")
+        input_ids = batch["input_ids"].to(self.device)
+        attention_mask = batch["attention_mask"].to(self.device)
+        with self.torch.no_grad():
+            outputs = self.model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                max_new_tokens=int(self.options.get("max_new_tokens", 4096)),
+                do_sample=True,
+                audio_temperature=float(self.options.get("audio_temperature", 1.7)),
+                audio_top_p=float(self.options.get("audio_top_p", 0.8)),
+                audio_top_k=int(self.options.get("audio_top_k", 25)),
+                audio_repetition_penalty=float(self.options.get("audio_repetition_penalty", 1.0)),
+            )
+        message_out = next(message for message in self.processor.decode(outputs) if message is not None)
+        audio = message_out.audio_codes_list[0]
+        sample_rate = int(self.processor.model_config.sampling_rate)
+        torchaudio.save(item["output_path"], audio, sample_rate)
+        return sample_rate, float(audio.shape[-1]) / sample_rate
+
+
 BACKENDS = {
     "voxcpm": VoxCPMBackend,
     "chatterbox": ChatterboxBackend,
@@ -360,6 +697,14 @@ BACKENDS = {
     "omnivoice": OmniVoiceBackend,
     "freya": FreyaBackend,
     "fish-speech": FishSpeechBackend,
+    "piper": PiperBackend,
+    "mms-tts": MMSBackend,
+    "anka-tts": AnkaBackend,
+    "pocket-tts": PocketBackend,
+    "kani-tts": KaniBackend,
+    "higgs": HiggsBackend,
+    "firered": FireRedBackend,
+    "moss-tts-v1.5": MossV15Backend,
 }
 
 
@@ -395,6 +740,7 @@ def _serve(backend: Backend) -> None:
                     }
                 )
             except Exception as error:  # noqa: BLE001
+                traceback.print_exc(file=sys.stderr)
                 results.append({"sample_id": item["sample_id"], "error": f"{type(error).__name__}: {error}"})
             finally:
                 _release_cuda_cache()

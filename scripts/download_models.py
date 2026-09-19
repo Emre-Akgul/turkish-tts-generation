@@ -1,6 +1,7 @@
 """Download and verify selected pinned checkpoints without installing engines."""
 
 import argparse
+import fnmatch
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -122,6 +123,155 @@ DOWNLOADS = (
         ("audiovae.pth",),
         allow=("audiovae.pth",),
     ),
+    Download(
+        "piper-tr-dfki",
+        "rhasspy/piper-voices",
+        "piper-tr-dfki",
+        "8914c16824264dfe6425deffca679ce9bb1ab371",
+        ("tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx", "tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx.json"),
+        allow=("tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx", "tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx.json"),
+    ),
+    Download(
+        "mms-tts-tur",
+        "facebook/mms-tts-tur",
+        "mms-tts-tur",
+        "7e364479c307f06733ca865b0a5269e0209cf82d",
+        ("config.json", "model.safetensors", "special_tokens_map.json", "tokenizer_config.json", "vocab.json"),
+        allow=("config.json", "model.safetensors", "special_tokens_map.json", "tokenizer_config.json", "vocab.json"),
+    ),
+    Download(
+        "anka-tts-v0.1",
+        "krmkayabasi/Anka-TTS",
+        "anka-tts",
+        "f1ce92d4eeb02ab0d57b537493b6dd365b24607b",
+        ("model.safetensors", "vocab.txt"),
+        allow=("model.safetensors", "vocab.txt"),
+    ),
+    Download(
+        "kizagan-tts-v1",
+        "AlicanKiraz0/Kizagan-TTS-v1.0",
+        "kizagan-tts-v1",
+        "a22aac87ee3d84c3757f06efec5cfa08f426e02b",
+        ("model.safetensors", "audiovae.pth", "config.json"),
+        allow=(
+            "model.safetensors",
+            "audiovae.pth",
+            "config.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "special_tokens_map.json",
+        ),
+    ),
+    Download(
+        "pocket-tts-tr",
+        "kaanhgunay/pocket-tts-tr",
+        "pocket-tts-tr",
+        "e5aa490d9aa6075cf047e4286fb57cecb99aa1ed",
+        ("config.yaml", "model.safetensors", "tokenizer.model"),
+        allow=("config.yaml", "model.safetensors", "tokenizer.model"),
+    ),
+    Download(
+        "kani-tts-400m-0.3-tr",
+        "Anilosan15/kani-tts-400m-0.3-tr",
+        "kani-tts-400m-0.3-tr",
+        "a8b45f2cbb094a0c7b174f0e4e46caa2acfb6294",
+        (
+            "config.json",
+            "generation_config.json",
+            "model.safetensors",
+            "special_tokens_map.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+        ),
+        allow=(
+            "config.json",
+            "generation_config.json",
+            "model.safetensors",
+            "special_tokens_map.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "chat_template.jinja",
+        ),
+    ),
+    Download(
+        "s2-pro",
+        "fishaudio/s2-pro",
+        "s2-pro",
+        "1de9996b6be38b745688de084d87a5633f714e4e",
+        (
+            "config.json",
+            "model-00001-of-00002.safetensors",
+            "model-00002-of-00002.safetensors",
+            "model.safetensors.index.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "special_tokens_map.json",
+            "codec.pth",
+        ),
+        allow=(
+            "config.json",
+            "model-00001-of-00002.safetensors",
+            "model-00002-of-00002.safetensors",
+            "model.safetensors.index.json",
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "special_tokens_map.json",
+            "codec.pth",
+            "chat_template.jinja",
+        ),
+    ),
+    Download(
+        "higgs-tts-3-4b",
+        "bosonai/higgs-tts-3-4b",
+        "higgs-tts-3-4b",
+        "239f63fb7b02b1aa085f98d9efae5e35cc5523e8",
+        ("config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json"),
+        allow=("config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json", "chat_template.jinja"),
+    ),
+    Download(
+        "firered-tts3",
+        "FireRedTeam/FireRedTTS3",
+        "firered-tts3",
+        "dcf1bdcd1b8b25b382fa84c3e34eb82e3054a610",
+        (
+            "fireredtts3_base/config.json",
+            "fireredtts3_base/model.safetensors",
+            "redae/config.json",
+            "redae/model.safetensors",
+            "campp/campplus_voxceleb.bin",
+            "text_tokenizer/tokenizer.json",
+            "text_tokenizer/tokenizer_config.json",
+            "text_tokenizer/vocab.json",
+        ),
+        allow=(
+            "fireredtts3_base/*",
+            "redae/*",
+            "campp/*",
+            "text_tokenizer/*",
+        ),
+    ),
+    Download(
+        "moss-tts-local-v1.5",
+        "OpenMOSS-Team/MOSS-TTS-Local-Transformer-v1.5",
+        "moss-tts-local-v1.5",
+        "be7766a6735b98bd793f7c79fb720b4d0f5d13b8",
+        ("config.json", "model.safetensors", "modeling_moss_tts.py", "processing_moss_tts.py", "tokenizer.json"),
+        allow=(
+            "*.py",
+            "*.json",
+            "*.jinja",
+            "model.safetensors",
+            "merges.txt",
+        ),
+    ),
+    Download(
+        "moss-audio-tokenizer-v2",
+        "OpenMOSS-Team/MOSS-Audio-Tokenizer-v2",
+        "moss-audio-tokenizer-v2",
+        "f6e20e543b33d2c252a7ef71bdf8aa71e5ff9169",
+        ("model-00001-of-00003.safetensors", "modeling_moss_audio_tokenizer.py"),
+        allow=("*.py", "*.json", "model-*.safetensors"),
+    ),
 )
 
 PRIMARY_KEYS = {
@@ -134,11 +284,25 @@ PRIMARY_KEYS = {
     "xtts-v2",
     "omnivoice",
     "freya-tts",
+    "piper-tr-dfki",
+    "mms-tts-tur",
+    "anka-tts-v0.1",
+    "kizagan-tts-v1",
+    "pocket-tts-tr",
+    "kani-tts-400m-0.3-tr",
+    "s2-pro",
+    "higgs-tts-3-4b",
+    "firered-tts3",
+    "moss-tts-local-v1.5",
 }
 DEPENDENCIES = {
     "orkhon-tts": ("vocos-mel-24khz", "xtts-reference"),
     "moss-tts-nano-100m": ("moss-audio-tokenizer-nano", "xtts-reference"),
     "freya-tts": ("voxcpm2-audiovae",),
+    "pocket-tts-tr": ("xtts-reference",),
+    "higgs-tts-3-4b": ("xtts-reference",),
+    "firered-tts3": ("xtts-reference",),
+    "moss-tts-local-v1.5": ("moss-audio-tokenizer-v2", "xtts-reference"),
 }
 
 
@@ -155,7 +319,13 @@ def _selected(keys: list[str]) -> tuple[Download, ...]:
 
 def _snapshot_bytes(download: Download) -> int:
     info = HfApi().model_info(download.repo_id, revision=download.revision, files_metadata=True)
-    return sum(int(sibling.size or 0) for sibling in info.siblings)
+    if download.allow is None:
+        return sum(int(sibling.size or 0) for sibling in info.siblings)
+    return sum(
+        int(sibling.size or 0)
+        for sibling in info.siblings
+        if any(fnmatch.fnmatch(sibling.rfilename, pattern) for pattern in download.allow)
+    )
 
 
 def main() -> None:
