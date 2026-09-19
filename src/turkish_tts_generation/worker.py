@@ -666,10 +666,20 @@ class MossV15Backend(Backend):
         self.options = options
         self.torch = torch
         self.device = device
+        if device.startswith("cuda"):
+            # The model card's own quickstart disables this: it's broken on some
+            # CUDA/PyTorch combinations and falls back to flash/mem-efficient/math.
+            torch.backends.cuda.enable_cudnn_sdp(False)
         dtype = torch.bfloat16 if device.startswith("cuda") else torch.float32
         self.processor = AutoProcessor.from_pretrained(str(model_path), trust_remote_code=True)
         self.processor.audio_tokenizer = self.processor.audio_tokenizer.to(device)
-        self.model = AutoModel.from_pretrained(str(model_path), trust_remote_code=True, torch_dtype=dtype).to(device)
+        # The model's own default attn_implementation is flash_attention_2; the
+        # model card's own quickstart falls back to sdpa when flash_attn isn't
+        # installed (matched here, rather than building flash_attn from source
+        # just for this engine).
+        self.model = AutoModel.from_pretrained(
+            str(model_path), trust_remote_code=True, torch_dtype=dtype, attn_implementation="sdpa"
+        ).to(device)
         self.model.eval()
 
     def generate(self, item: dict[str, Any]) -> tuple[int, float]:
