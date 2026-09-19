@@ -31,7 +31,7 @@ targets:
   - {name: pocket-tts-tr, engine: pocket-tts, model_id: pocket-tts-tr, batch_size: 1, device: cpu, dtype: float32, options: {seed: 42, sampler_decode_steps: 1}}
   - {name: kani-tts-tr, engine: kani-tts, model_id: kani-tts-400m-0.3-tr, batch_size: 1, device: cuda, dtype: float32, options: {seed: 42}}
   - {name: higgs-tts-3, engine: higgs, model_id: higgs-tts-3-4b, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, reference_text: "Bir zamanlar 6 yaşındayken muhteşem bir resim gördüm.", temperature: 0.8, top_k: 50, max_new_tokens: 1024}}
-  - {name: firered-tts3, engine: firered, model_id: firered-tts3, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, language: tr, reference_text: "Bir zamanlar 6 yaşındayken muhteşem bir resim gördüm."}}
+  - {name: firered-tts3, engine: firered, model_id: firered-tts3, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, language: Turkish, reference_text: "Bir zamanlar 6 yaşındayken muhteşem bir resim gördüm."}}
   - {name: moss-tts-v1.5, engine: moss-tts-v1.5, model_id: moss-tts-local-v1.5, batch_size: 1, device: cuda, dtype: bfloat16, options: {seed: 42, language: Turkish}}
 
 output:
