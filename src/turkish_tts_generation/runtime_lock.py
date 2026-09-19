@@ -39,6 +39,13 @@ RUNTIME_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     ),
     "fish-speech": (
         "git+https://github.com/fishaudio/fish-speech.git@e5e292632cb11e7a27b2b7487f58f612bc101e13",
+        # Without an explicit floor, uv's resolver backtracks to the oldest
+        # transformers (4.12.2) satisfying some unrelated constraint elsewhere in
+        # the tree, which drags in tokenizers==0.10.3 -- a Rust extension with no
+        # prebuilt wheel for modern Python that also fails to compile on any
+        # single Rust toolchain (its code predates a lint now deny-by-default,
+        # but its unpinned transitive deps need a newer Cargo than that implies).
+        "transformers>=4.40,<4.58",
         "soundfile==0.14.0",
     ),
     "piper": ("piper-tts==1.8.0", "soundfile==0.14.0"),
